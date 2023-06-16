@@ -1,0 +1,67 @@
+# sphinx-markdown-builder
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sphinx-markdown-builder"
+version = "0.5.5"
+description = "Sphinx builder that generates markdown files from reStructuredText."
+readme = "README.md"
+authors = [{ name = "Liran Funaro", email = "liran.funaro@gmail.com" }]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+keywords = ["sphinx", "markdown", "docs", "documentation", "builder"]
+dependencies = ["sphinx>=2.2.0", "tabulate", "docutils"]
+requires-python = ">=3.7"
+
+[tool.poetry.plugins] # Optional super table
+
+[tool.poetry.plugins."sphinx.builders"]
+"markdown" = "sphinx_markdown_builder"
+
+[project.optional-dependencies]
+dev = [
+    "bumpver", "black", "isort", "flake8", "pylint", "pip-tools",
+]
+
+[project.urls]
+Homepage = "https://github.com/liran-funaro/sphinx-markdown-builder"
+
+[tool.bumpver]
+current_version = "0.5.5"
+version_pattern = "MAJOR.MINOR.PATCH[-TAG]"
+commit_message = "bump version {old_version} -> {new_version}"
+commit = true
+tag = true
+push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    "current_version = \"{version}\"",
+    "version = \"{version}\"",
+]
+"README.md" = [
+    "objsize=={version}",
+    "Copyright (c) 2006-YYYY, Liran Funaro.",
+]
+"LICENSE" = [
+    "Copyright (c) 2006-YYYY, Liran Funaro.",
+]
+"shpinx_markdown_builder/__init__.py" = [
+    "^__version__ = \"{version}\"$",
+]
+
+[tool.black]
+line-length = 120
+
+[tool.pylint.format]
+max-line-length = 120
+max-args = 6

@@ -46,9 +46,9 @@ class TableContext(SubContext):
     def active_output(self):
         if self.is_head:
             return self.headers
-        else:
-            assert self.is_body
-            return self.body
+
+        assert self.is_body
+        return self.body
 
     def enter_head(self):
         assert not self.is_body
@@ -104,3 +104,83 @@ class TableContext(SubContext):
 
         body = list(map(self.make_row, self.body))
         return tabulate(body, headers=headers, tablefmt="github")
+
+
+class IndentLevel:
+    """Class to hold text being written for a certain indentation level.
+
+    For example, all text in list_elements need to be indented.  A list_element
+    creates one of these indentation levels, and all text contained in the
+    list_element gets written to this IndentLevel.  When we leave the
+    list_element, we ``write`` the text with suitable prefixes to the next
+    level down, which might be the base of the document (document body) or
+    another indentation level, if this is - for example - a nested list.
+
+    In most respects, IndentLevel behaves like a list.
+    """
+
+    def __init__(self, base, prefix, first_prefix=None):
+        self.base = base  # The list to which we eventually write
+        self.prefix = prefix  # Text prepended to lines
+        # Text prepended to first list
+        self.first_prefix = prefix if first_prefix is None else first_prefix
+        # Our own list to which we append before doing a ``write``
+        self.content = []
+
+    def append(self, new):
+        self.content.append(new)
+
+    def __getitem__(self, index):
+        return self.content[index]
+
+    def __len__(self):
+        return len(self.content)
+
+    def __bool__(self):
+        return len(self) != 0
+
+    def write(self):
+        """Add ``self.contents`` with current ``prefix`` and ``first_prefix``
+
+        Add processed ``self.contents`` to ``self.base``.  The first line has
+        ``first_prefix`` prepended, further lines have ``prefix`` prepended.
+
+        Empty (all whitespace) lines get written as bare carriage returns, to
+        avoid ugly extra whitespace.
+        """
+        string = "".join(self.content)
+        lines = string.splitlines(True)
+        if len(lines) == 0:
+            return
+        texts = [self.first_prefix + lines[0]]
+        for line in lines[1:]:
+            if line.strip() == "":  # avoid prefix for empty lines
+                texts.append("\n")
+            else:
+                texts.append(self.prefix + line)
+        self.base.append("".join(texts))
+
+
+class Depth:
+    def __init__(self):
+        self.depth = 0
+        self.sub_depth = {}
+
+    def get(self, name=None):
+        if name:
+            return self.sub_depth[name] if name in self.sub_depth else 0
+        return self.depth
+
+    def descend(self, name=None):
+        self.depth = self.depth + 1
+        if name:
+            sub_depth = (self.sub_depth[name] if name in self.sub_depth else 0) + 1
+            self.sub_depth[name] = sub_depth
+        return self.get(name)
+
+    def ascend(self, name=None):
+        self.depth = max(0, self.depth - 1)
+        if name:
+            sub_depth = max(0, (self.sub_depth[name] if name in self.sub_depth else 0) - 1)
+            self.sub_depth[name] = sub_depth
+        return self.get(name)
