@@ -50,13 +50,17 @@ push = false
 ]
 "README.md" = [
     "objsize=={version}",
-    "Copyright (c) 2006-YYYY, Liran Funaro.",
+    "Copyright (c) 2023-YYYY, Liran Funaro.",
 ]
 "LICENSE" = [
-    "Copyright (c) 2006-YYYY, Liran Funaro.",
+    "Copyright (c) 2023-YYYY, Liran Funaro.",
 ]
 "shpinx_markdown_builder/__init__.py" = [
     "^__version__ = \"{version}\"$",
+]
+"docs/conf.py" = [
+    "^version = \"{version}\"$",
+    "Copyright (c) 2023-YYYY, Liran Funaro.",
 ]
 
 [tool.black]

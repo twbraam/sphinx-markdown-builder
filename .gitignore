@@ -64,7 +64,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+docs-tests/_build/
 
 # PyBuilder
 target/
@@ -111,3 +111,5 @@ README.rst
 .tern-port
 
 .idea
+
+docs-build

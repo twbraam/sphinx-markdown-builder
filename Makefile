@@ -1,63 +1,34 @@
-CWD := $(shell pwd)
-ARGS := ""
+# You can set these variables from the command line, and also
+# from the environment for the first two.
+SPHINX_OPTS    ?=
+SPHINX_BUILD   ?= sphinx-build
+SOURCE_DIR      = docs-tests
+BUILD_DIR       = docs-build
 
-.PHONY: all
-all: clean
+# Put it first so that "make" without argument is like "make help".
+help:
+	@$(SPHINX_BUILD) -M help "$(SOURCE_DIR)" "$(BUILD_DIR)" $(SPHINX_OPTS) $(O)
 
-.PHONY: start
-start: env
-	@cd examples/javascript && \
-		make markdown
+.PHONY: help Makefile
 
-.PHONY: install
-install: env
-	@cd examples/javascript && make install
-
-.PHONY: uninstall
-uninstall:
-	-@rm -rf env >/dev/null || true
-	@cd examples/javascript && make uninstall
-
-.PHONY: reinstall
-reinstall: uninstall install
-	@cd examples/javascript && make reinstall
-
-.PHONY: format
-format:
-	@env/bin/yapf -ir -vv \
-    $(CWD)/*.py \
-    $(CWD)/sphinx_markdown_builder
-	@env/bin/unify -ir \
-    $(CWD)/*.py \
-    $(CWD)/sphinx_markdown_builder
-
-env:
-	@virtualenv env
-	@env/bin/pip3 install -r ./requirements.txt
-
-.PHONY: build
-build: dist
-
-dist: clean install
-	@env/bin/python3 setup.py sdist
-	@env/bin/python3 setup.py bdist_wheel
-
-.PHONY: publish
-publish: dist
-	@twine upload dist/*
-
-.PHONY: link
-link: install
-	@pip3 install -e .
-
-.PHONY: unlink
-unlink: install
-	-@rm -r $(shell find . -name '*.egg-info') 2>/dev/null | true
-
-.PHONY: clean
 clean:
-	@git clean -fXd -e \!env -e \!env/**/*
+	rm -rf "$(BUILD_DIR)" "$(SOURCE_DIR)/library"
 
-.PHONY: nuke
-nuke:
-	@git clean -fXd
+# Catch-all target: route all unknown targets to Sphinx using the new "make mode" option.
+# $(O) is meant as a shortcut for $(SPHINX_OPTS).
+doc-%:
+	@$(SPHINX_BUILD) -M $* "$(SOURCE_DIR)" "$(BUILD_DIR)" $(SPHINX_OPTS) $(O)
+
+
+docs: doc-markdown
+
+
+test:
+	@$(SPHINX_BUILD) -M markdown "$(SOURCE_DIR)" "$(BUILD_DIR)" $(SPHINX_OPTS) $(O)
+	diff "$(BUILD_DIR)/markdown/index.md" "$(SOURCE_DIR)/__expected.md"
+
+
+release:
+	@rm -rf dist/*
+	python3 -m build || exit
+	python3 -m twine upload --repository sphinx_markdown_builder dist/*

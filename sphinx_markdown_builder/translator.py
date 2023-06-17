@@ -9,13 +9,15 @@ from typing import List
 
 from docutils import languages, nodes
 
-from sphinx_markdown_builder.contexts import AnnotationContext, IndentLevel, SubContext, TableContext, Depth
+from sphinx_markdown_builder.contexts import AnnotationContext, IndentContext, SubContext, TableContext, Depth
 from sphinx_markdown_builder.decorators import PASS_THRU_ELEMENTS, PREF_SUFF_ELEMENTS, add_pass_thru, add_pref_suff
 
 __docformat__ = "reStructuredText"
 
 # Characters that should be escaped in Markdown
 ESCAPE_RE = re.compile(r"([\\*`])")
+
+DOC_SECTION_ORDER = "head", "body", "foot"
 
 
 def escape_chars(txt: str):
@@ -37,26 +39,10 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         # Warn only once per writer about unsupported elements
         self._warned = set()
         # Lookup table to get section list from name (default is ordered dict)
-        self._lists = {
-            "head": [],
-            "body": [],
-            "foot": [],
-        }
+        self._sections = dict.fromkeys(DOC_SECTION_ORDER, None)
 
         # Current section heading level during writing
         self.section_level = 0
-
-        # FIFO list of list prefixes, while writing nested lists.  Each element
-        # corresponds to one level of nesting.  Thus ['1. ', '1. ', '* '] would
-        # occur when writing items of an unordered list, that is nested within
-        # an ordered list, that in turn is nested in another ordered list.
-        self.list_prefixes = []
-
-        # FIFO list of indentation levels.  When we are writing a block of text
-        # that should be indented, we create a new indentation level.  We only
-        # write the text when we leave the indentation level, so we can insert
-        # the correct prefix for every line.
-        self.indent_levels = []
 
         # Flag indicating we are processing docinfo items
         self._in_docinfo = False
@@ -66,7 +52,7 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
 
         self.depth = Depth()
         self.enumerated_count = {}
-        # Sub context allow us to handle unique cases when post-processing is required
+        # FIFO Sub context allow us to handle unique cases when post-processing is required.
         self.sub_contexts: List[SubContext] = []
         # Saves the current descriptor type
         self.desc_context: List[str] = []
@@ -76,12 +62,10 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
 
     def reset(self):
         """Initialize object for fresh read."""
-        for k in self._lists:
-            self._lists[k] = []
+        for k in self._sections:
+            self._sections[k] = []
 
         self.section_level = 0
-        self.list_prefixes = []
-        self.indent_levels = []
         self._in_docinfo = False
         self._escape_text = True
 
@@ -92,15 +76,16 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
 
     def astext(self):
         """Return the final formatted document as a string."""
-        parts = ["".join(lines).strip() for lines in self._lists.values()]
+        parts = ["".join(self._sections[section]).strip() for section in DOC_SECTION_ORDER]
         parts = [part + "\n\n" for part in parts if part]
         return "".join(parts).strip() + "\n"
 
     def _iter_content(self, section="body"):
         """We iterate over the content from the most recent context to the least"""
-        for ind in reversed(self.indent_levels):
-            yield ind.content
-        yield self._lists[section]
+        for ctx in reversed(self.sub_contexts):
+            yield ctx.content
+
+        yield self._sections[section]
 
     def count_prev_eol(self, section="body"):
         line_break_count = 0
@@ -119,10 +104,6 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         if missing_eol > 0:
             self.add("\n" * missing_eol)
 
-    def get_current_output(self, section="body"):
-        """Get list or IndentLevel to which we are currently writing."""
-        return self.indent_levels[-1] if self.indent_levels else self._lists[section]
-
     def add(self, value, section="body"):
         """Add `string` to `section` or current output.
 
@@ -139,32 +120,21 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         if len(self.sub_contexts) > 0:
             self.sub_contexts[-1].add(value)
         else:
-            self.get_current_output(section).append(value)
+            self._sections[section].append(value)
 
-    def add_section(self, string, section="body"):
+    def add_section(self, value: str, section="body"):
         """Add `string` to `section` regardless of current output.
 
         Can be useful when forcing write to header or footer.
 
         Parameters
         ----------
-        string : str
+        value : str
             String to add to output document
         section : {'body', 'head', 'foot'}, optional
             Section of document that generated text should be appended to.
         """
-        self._lists[section].append(string)
-
-    def start_level(self, prefix, first_prefix=None, section="body"):
-        """Create a new IndentLevel with `prefix` and `first_prefix`"""
-        base = self.indent_levels[-1].content if self.indent_levels else self._lists[section]
-        level = IndentLevel(base, prefix, first_prefix)
-        self.indent_levels.append(level)
-
-    def finish_level(self):
-        """Remove most recent IndentLevel and write contents."""
-        level = self.indent_levels.pop()
-        level.write()
+        self._sections[section].append(value)
 
     def add_context(self, ctx: SubContext):
         self.sub_contexts.append(ctx)
@@ -172,6 +142,12 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
     def pop_context(self, _node):
         content = self.sub_contexts.pop().make()
         self.add(content)
+
+    def start_level(self, prefix, first_prefix=None):
+        """Create a new IndentLevel with `prefix` and `first_prefix`"""
+        self.add_context(IndentContext(prefix, first_prefix))
+
+    finish_level = pop_context
 
     @property
     def ctx(self) -> SubContext:
@@ -199,9 +175,9 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
     def depart_desc(self, _node):
         self.desc_context.pop()
 
-    def visit_desc_annotation(self, node):
+    def visit_desc_annotation(self, _node):
         # annotation, e.g 'method', 'class', or a signature
-        self.add_context(AnnotationContext(node))
+        self.add_context(AnnotationContext())
 
     depart_desc_annotation = pop_context
 
@@ -278,8 +254,7 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         self.ensure_eol(1)
         self.start_level("    ")
 
-    def depart_field_body(self, _node):
-        self.finish_level()
+    depart_field_body = finish_level
 
     def visit_literal_strong(self, _node):
         self.add("**")
@@ -390,10 +365,10 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
     #         docutils.nodes.entry
 
     def visit_raw(self, _node):
-        self.descend("raw")
+        self.depth.descend("raw")
 
     def depart_raw(self, _node):
-        self.ascend("raw")
+        self.depth.ascend("raw")
 
     def visit_tabular_col_spec(self, node):
         pass
@@ -408,10 +383,10 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         pass
 
     def visit_tgroup(self, _node):
-        self.descend("tgroup")
+        self.depth.descend("tgroup")
 
     def depart_tgroup(self, _node):
-        self.ascend("tgroup")
+        self.depth.ascend("tgroup")
 
     @property
     def table_ctx(self) -> TableContext:
@@ -419,8 +394,8 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         assert isinstance(ctx, TableContext)
         return ctx
 
-    def visit_table(self, node):
-        self.add_context(TableContext(node))
+    def visit_table(self, _node):
+        self.add_context(TableContext())
 
     depart_table = pop_context
 
@@ -485,19 +460,13 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         # Make sure the list item ends with a new line
         self.ensure_eol()
 
-    def descend(self, node_name):
-        self.depth.descend(node_name)
-
-    def ascend(self, node_name):
-        self.depth.ascend(node_name)
-
     ##########################################################################
     # doctree2md
     ##########################################################################
 
     # noinspection PyPep8Naming
     def visit_Text(self, node):  # pylint: disable=invalid-name
-        text = node.astext().replace("\r\n", "\n")
+        text = node.astext().replace("\r", "")
         if self._escape_text:
             text = escape_chars(text)
         self.add(text)
@@ -509,7 +478,7 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
     def visit_comment(self, node):
         txt = node.astext()
         if txt.strip():
-            self.add("<!-- " + node.astext() + " -->\n")
+            self.add(f"<!-- {txt} -->\n")
         raise nodes.SkipNode
 
     def visit_docinfo(self, _node):
@@ -527,8 +496,7 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         self.ensure_eol(2)
         self.start_level("    ")
 
-    def depart_definition(self, _node):
-        self.finish_level()
+    depart_definition = finish_level
 
     @classmethod
     def is_paragraph_requires_eol(cls, node):
@@ -619,8 +587,7 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
     def visit_block_quote(self, _node):
         self.start_level("> ")
 
-    def depart_block_quote(self, _node):
-        self.finish_level()
+    depart_block_quote = finish_level
 
     def visit_section(self, _node):
         self.section_level += 1
