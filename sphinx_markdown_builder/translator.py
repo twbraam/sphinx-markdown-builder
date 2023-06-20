@@ -5,7 +5,7 @@ import os
 import posixpath
 import re
 from textwrap import dedent
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Union
 
 from docutils import languages, nodes
 
@@ -204,11 +204,6 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         self._push_context(IndentContext(prefix))
 
     _finish_level = _pop_context
-
-    def _start_emphasis(self, start_mark: str, end_mark: Optional[str] = None):
-        self._push_context(WrappedContext(start_mark, end_mark))
-
-    _end_emphasis = _pop_context
 
     def _pass(self, _node=None):
         pass

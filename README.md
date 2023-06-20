@@ -1,5 +1,7 @@
 # sphinx-markdown-builder
 
+[![Coverage Status](https://coveralls.io/repos/github/liran-funaro/sphinx-markdown-builder/badge.svg?branch=main)](https://coveralls.io/github/liran-funaro/sphinx-markdown-builder?branch=main)
+
 Sphinx builder that generates markdown files from reStructuredText.
 
 ## Installation
