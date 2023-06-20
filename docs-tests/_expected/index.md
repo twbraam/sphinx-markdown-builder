@@ -54,3 +54,23 @@
     * [Report Columns](Section_course_student.md#report-columns)
   * [Download the Learner Engagement Report](Section_course_student.md#download-the-learner-engagement-report)
 * [Links](links.md)
+* [Welcome to Sphinx-Markdown-Builder TocTree Test’s documentation!](auto-summery.md)
+
+  * [Documentation](auto-summery.md#documentation)
+
+    * [my_module](library/my_module.md)
+
+      * [my_module.module_class](library/my_module.module_class.md)
+
+        * [`default_var`](library/my_module.module_class.md#my_module.module_class.default_var)
+        * [`ModuleClass`](library/my_module.module_class.md#my_module.module_class.ModuleClass)
+
+          * [`ModuleClass.function()`](library/my_module.module_class.md#my_module.module_class.ModuleClass.function)
+      * [my_module.submodule](library/my_module.submodule.md)
+
+        * [my_module.submodule.my_class](library/my_module.submodule.my_class.md)
+
+          * [`SubmoduleClass`](library/my_module.submodule.my_class.md#my_module.submodule.my_class.SubmoduleClass)
+
+            * [`SubmoduleClass.function()`](library/my_module.submodule.my_class.md#my_module.submodule.my_class.SubmoduleClass.function)
+* [Indices and tables](auto-summery.md#indices-and-tables)

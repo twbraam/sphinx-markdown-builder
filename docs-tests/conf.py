@@ -1,5 +1,8 @@
 """Configuration file for the Sphinx documentation builder."""
 import os
+import sys
+
+sys.path.insert(0, os.path.abspath("."))
 
 project = "sphinx_markdown_builder"
 copyright = "Copyright (c) 2006-2023, Liran Funaro."
@@ -7,7 +10,6 @@ author = "Liran Funaro"
 version = "0.5.5"
 
 extensions = [
-    "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",  # Core library for html generation from docstrings
     "sphinx.ext.autosummary",  # Create neat summary tables
     "sphinx.ext.intersphinx",  # Link to other project's documentation (see mapping below)
@@ -84,7 +86,10 @@ autodoc_typehints = "description"  # Sphinx-native method. Not as good as sphinx
 add_module_names = False  # Remove namespaces from class/method signatures
 autodoc_member_order = "bysource"
 
-templates_path = []
-exclude_patterns = []
+templates_path = ["_templates"]
+exclude_patterns = ["_expected"]
 
 language = "en"
+
+markdown_anchor_sections = True
+markdown_anchor_signatures = True

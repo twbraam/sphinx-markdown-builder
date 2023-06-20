@@ -41,7 +41,6 @@ class MarkdownBuilder(Builder):
         self.writer = None
         self.sec_numbers = None
         self.current_doc_name = None
-        self.insert_anchors_for_signatures = False
 
     def init(self):
         self.sec_numbers = {}
@@ -76,7 +75,7 @@ class MarkdownBuilder(Builder):
         self.sec_numbers = self.env.toc_secnumbers.get(docname, {})
         destination = StringOutput(encoding="utf-8")
         self.writer.write(doctree, destination)
-        out_filename = os.path.join(self.outdir, os_path(docname) + self.out_suffix)
+        out_filename = os.path.join(self.outdir, f"{os_path(docname)}{self.out_suffix}")
         ensuredir(os.path.dirname(out_filename))
 
         try:

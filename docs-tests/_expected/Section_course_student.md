@@ -1,5 +1,7 @@
 <!-- Taken from https://github.com/openedx/edx-documentation/blob/67136d0c8f77592ca542992df167a57b6ed82156/en_us/shared/student_progress/Section_course_student.rst?plain=1 -->
 <a id="using-the-learner-engagement-report"></a>
+<a id="using-the-learner-engagement-report"></a>
+<a id="id1"></a>
 
 # Using the Learner Engagement Report
 
@@ -17,7 +19,11 @@ The server generates a new learner engagement report every day for the
 previous day’s activity. On Mondays, an additional report is generated to
 summarize activity during the previous week (Monday through Sunday).
 
+<a id="understanding-the-learner-engagement-report"></a>
+
 ## Understanding the Learner Engagement Report
+
+<a id="reported-problem-types"></a>
 
 ### Reported Problem Types
 
@@ -39,6 +45,8 @@ components.
 
 For more information about the problem types that you can add to courses, see
 [Adding Exercises and Tools](https://edx.readthedocs.io/projects/edx-partner-course-staff/en/latest/exercises_tools/index.html#exercises-and-tools-index).
+
+<a id="report-columns"></a>
 
 ### Report Columns
 
@@ -64,6 +72,8 @@ The learner engagement report .csv files contain the following columns.
 | Textbook Pages Viewed         | The number of pages in a .pdf textbook that the learner viewed.                                                                                    |
 | URL of Last Subsection Viewed | The URL of the last subsection the learner visited.                                                                                                |
 <a id="download-the-learner-engagement-report"></a>
+<a id="download-the-learner-engagement-report"></a>
+<a id="id2"></a>
 
 ## Download the Learner Engagement Report
 

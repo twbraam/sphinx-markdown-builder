@@ -419,7 +419,11 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         self.ensure_eol(2)
         raise nodes.SkipNode
 
-    def visit_section(self, _node):
+    def visit_section(self, node):
+        if self.builder.config.markdown_anchor_sections:
+            for anchor in node.get("ids", []):
+                self._add_anchor(anchor)
+
         self.section_level += 1
         self.ensure_eol(2)
 
@@ -498,15 +502,18 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
 
     depart_download_reference = _pop_context
 
+    def _add_anchor(self, anchor: str):
+        self._escape_text = False
+        self.ensure_eol()
+        self.add(f'<a id="{anchor}"></a>')
+        self.ensure_eol()
+        self._escape_text = True
+
     def visit_target(self, node):
         ref_id = node.get("refid", None)
         if ref_id is None:
             return
-        self._escape_text = False
-        self.ensure_eol()
-        self.add(f'<a id="{ref_id}"></a>')
-        self.ensure_eol()
-        self._escape_text = True
+        self._add_anchor(ref_id)
 
     def visit_only(self, node):
         if node["expr"] != "markdown":
@@ -553,10 +560,10 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
     def visit_desc_signature(self, node):
         """the main signature of class/method"""
 
-        # Insert anchors if enabled by the builder
-        if self.builder.insert_anchors_for_signatures:
-            for sig_id in node.get("ids", ()):
-                self.add(f'<a name="{sig_id}"></a>')
+        # Insert anchors if enabled by the config
+        if self.builder.config.markdown_anchor_signatures:
+            for anchor in node.get("ids", []):
+                self._add_anchor(anchor)
 
         # We don't want methods to be at the same level as classes,
         # If signature has a non-null class, that's means it is a signature
