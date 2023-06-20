@@ -1,91 +1,159 @@
 """
 Context handlers.
 """
+import re
+import textwrap
+from typing import List, Iterator, Optional
+
 from tabulate import tabulate
+
+
+class UniqueString(str):
+    pass
+
+
+CONTENT_START = UniqueString("content start")
+EOL = "\n"
+SPACE_CHARS = re.compile(r"\s+")
+WRAP_REGEXP = re.compile(r"(\s*)(?=\S)([\s\S]+?)(?<=\S)(\s*)", re.M)
+
+
+def is_content_start(value: str):
+    return isinstance(value, UniqueString) and value is CONTENT_START
 
 
 class SubContext:
     def __init__(self):
-        self.body = []
+        self.body: List[str] = []
+        self.ensure_eol_count = 0
 
     @property
-    def content(self):
+    def content(self) -> List[str]:
         return self.body
 
-    def __getitem__(self, index):
-        return self.content[index]
+    def _iter_reverse_char(self) -> Iterator[str]:
+        for value in reversed(self.content):
+            yield from reversed(value)
 
-    def __len__(self):
-        return len(self.content)
+        yield CONTENT_START
 
-    def __bool__(self):
-        return len(self) != 0
+    def _count_missing_eol(self) -> int:
+        """
+        Add required number of EOL characters.
+        Avoids adding EOL at the beginning of the content.
+        Ignores spaces when traversing the content.
+        """
+        missing_count = self.ensure_eol_count
+        for value in self._iter_reverse_char():
+            if is_content_start(value):
+                missing_count = 0
+            if missing_count <= 0 or SPACE_CHARS.fullmatch(value) is None:
+                break
+            if value == EOL:
+                missing_count -= 1
+
+        return max(0, missing_count)
+
+    def ensure_eol(self, count: int = 1):
+        self.ensure_eol_count = max(self.ensure_eol_count, count)
 
     def add(self, value: str):
-        self.content.append(value)
+        missing_eol = self._count_missing_eol()
+        if missing_eol > 0:
+            self.content.append(EOL * missing_eol)
 
-    def make(self):
+        self.content.append(value)
+        self.ensure_eol_count = 0
+
+    def make(self) -> str:
         return "".join(self.content)
 
 
-class AnnotationContext(SubContext):
+class WrappedContext(SubContext):
+    def __init__(self, prefix, suffix: Optional[str] = None):
+        super().__init__()
+        self.prefix = prefix
+        self.suffix = suffix if suffix is not None else prefix
+
     def make(self):
         content = super().make()
-        # We want to make the text italic. We need to make sure the _ mark is near a non-space char,
+        match = WRAP_REGEXP.fullmatch(content)
+        if match is None:
+            # The expression has no match only when there is no non-space character.
+            return content
+
+        # We need to make sure the emphasis mark is near a non-space char,
         # but we want to preserve the existing spaces.
-        prefix_spaces = len(content) - len(content.lstrip())
-        suffix_spaces = len(content) - len(content.rstrip())
-        annotation_mark = "_"
-        content = (
-            f"{annotation_mark:>{prefix_spaces + 1}}"
-            f"{content[prefix_spaces:len(content) - suffix_spaces]}"
-            f"{annotation_mark:<{suffix_spaces + 1}}"
-        )
-        return content
+        prefix_space, text, suffix_space = match.groups()
+        return f"{prefix_space}{self.prefix}{text}{self.suffix}{suffix_space}"
+
+
+class CommaSeparatedContext(SubContext):
+    def __init__(self, sep: str = ", "):
+        super().__init__()
+        self.sep = sep
+        self.body: List[List[str]] = []
+
+        self.is_parameter = False
+
+    def enter_parameter(self):
+        self.is_parameter = True
+        self.body.append([])
+
+    def exit_parameter(self):
+        self.is_parameter = False
+
+    @property
+    def content(self):
+        assert self.is_parameter
+        return self.body[-1]
+
+    def make(self):
+        if len(self.body) == 0:
+            return ""
+
+        return self.sep.join(["".join(item) for item in self.body])
 
 
 class TableContext(SubContext):
     def __init__(self):
         super().__init__()
-        self.headers = []
+        self.body: List[List[List[str]]] = []
+        self.headers: List[List[List[str]]] = []
+        self._active_output: Optional[List[List[List[str]]]] = None
 
-        self.is_head = False
-        self.is_body = False
         self.is_row = False
         self.is_entry = False
 
     @property
-    def active_output(self):
-        if self.is_head:
-            return self.headers
-
-        assert self.is_body
-        return self.body
+    def active_output(self) -> List[List[List[str]]]:
+        assert self._active_output is not None
+        return self._active_output
 
     @property
     def content(self):
+        assert self.is_entry
         return self.active_output[-1][-1]
 
     def enter_head(self):
-        assert not self.is_body
-        self.is_head = True
+        assert self._active_output is None
+        self._active_output = self.headers
 
     def exit_head(self):
-        assert self.is_head
-        self.is_head = False
+        assert self._active_output is self.headers
+        self._active_output = None
 
     def enter_body(self):
-        assert not self.is_head
-        self.is_body = True
+        assert self._active_output is None
+        self._active_output = self.body
 
     def exit_body(self):
-        assert self.is_body
-        self.is_body = False
+        assert self._active_output is self.body
+        self._active_output = None
 
     def enter_row(self):
-        assert self.is_head or self.is_body
-        self.is_row = True
         self.active_output.append([])
+        self.is_row = True
 
     def exit_row(self):
         assert self.is_row
@@ -95,14 +163,11 @@ class TableContext(SubContext):
         assert self.is_row
         self.is_entry = True
         self.active_output[-1].append([])
+        self.ensure_eol_count = 0
 
     def exit_entry(self):
         assert self.is_entry
         self.is_entry = False
-
-    def add(self, value: str):
-        assert self.is_entry
-        self.content.append(value)
 
     @staticmethod
     def make_row(row):
@@ -124,61 +189,17 @@ class TableContext(SubContext):
 
 
 class IndentContext(SubContext):
-    """Class to hold text being written for a certain indentation level.
-
-    For example, all text in list_elements need to be indented.  A list_element
-    creates one of these indentation levels, and all text contained in the
-    list_element gets written to this IndentLevel.  When we leave the
-    list_element, we ``write`` the text with suitable prefixes to the next
-    level down, which might be the base of the document (document body) or
-    another indentation level, if this is - for example - a nested list.
-
-    In most respects, IndentLevel behaves like a list.
-    """
-
-    def __init__(self, prefix, first_prefix=None):
+    def __init__(self, prefix, only_first=False):
         super().__init__()
-        self.prefix = prefix  # Text prepended to lines
-        # Text prepended to first list
-        self.first_prefix = prefix if first_prefix is None else first_prefix
-        # Our own list to which we append before doing a ``write``
-
-    def append(self, new):
-        self.body.append(new)
+        if only_first:
+            self.prefix = " " * len(prefix)
+            self.first_prefix = prefix
+        else:
+            self.prefix = prefix
+            self.first_prefix = None
 
     def make(self):
-        """Add ``self.contents`` with current ``prefix`` and ``first_prefix``
-
-        Add processed ``self.contents`` to ``self.base``.  The first line has
-        ``first_prefix`` prepended, further lines have ``prefix`` prepended.
-
-        Empty (all whitespace) lines get written as bare carriage returns, to
-        avoid ugly extra whitespace.
-        """
-        content = super().make()
-        lines = content.splitlines(True)
-        if len(lines) == 0:
-            return ""
-        texts = [self.first_prefix + lines[0]]
-        for line in lines[1:]:
-            if line.strip() == "":  # avoid prefix for empty lines
-                texts.append("\n")
-            else:
-                texts.append(self.prefix + line)
-        return "".join(texts)
-
-
-class Depth:
-    def __init__(self):
-        self.sub_depth = {}
-
-    def get(self, name: str):
-        return self.sub_depth.get(name, 0)
-
-    def descend(self, name: str):
-        self.sub_depth[name] = self.sub_depth.get(name, 0) + 1
-        return self.get(name)
-
-    def ascend(self, name: str):
-        self.sub_depth[name] = max(0, self.sub_depth.get(name, 0) - 1)
-        return self.get(name)
+        content = textwrap.indent(super().make(), self.prefix)
+        if self.first_prefix is None:
+            return content
+        return content.replace(self.prefix, self.first_prefix, 1)

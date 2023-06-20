@@ -5,8 +5,6 @@ from docutils import frontend, writers
 
 from sphinx_markdown_builder.translator import MarkdownTranslator
 
-__docformat__ = "reStructuredText"
-
 
 class MarkdownWriter(writers.Writer):
     supported = ("markdown",)

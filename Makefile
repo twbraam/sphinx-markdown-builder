@@ -5,11 +5,11 @@ SPHINX_BUILD   ?= sphinx-build
 SOURCE_DIR      = docs-tests
 BUILD_DIR       = docs-build
 
+.PHONY: help clean test meld release
+
 # Put it first so that "make" without argument is like "make help".
 help:
 	@$(SPHINX_BUILD) -M help "$(SOURCE_DIR)" "$(BUILD_DIR)" $(SPHINX_OPTS) $(O)
-
-.PHONY: help Makefile
 
 clean:
 	rm -rf "$(BUILD_DIR)" "$(SOURCE_DIR)/library"
@@ -24,9 +24,11 @@ docs: doc-markdown
 
 
 test:
-	@$(SPHINX_BUILD) -M markdown "$(SOURCE_DIR)" "$(BUILD_DIR)" $(SPHINX_OPTS) $(O)
-	diff "$(BUILD_DIR)/markdown/index.md" "$(SOURCE_DIR)/__expected.md"
+	@$(SPHINX_BUILD) -M markdown "$(SOURCE_DIR)" "$(BUILD_DIR)" $(SPHINX_OPTS) $(O) -a -t Partners
+	diff --recursive "$(BUILD_DIR)/markdown" "$(SOURCE_DIR)/_expected"
 
+meld:
+	meld "$(BUILD_DIR)/markdown" "$(SOURCE_DIR)/_expected"
 
 release:
 	@rm -rf dist/*

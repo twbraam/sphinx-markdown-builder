@@ -5,19 +5,65 @@ import os
 import posixpath
 import re
 from textwrap import dedent
-from typing import List
+from typing import List, Dict, Union, Optional
 
 from docutils import languages, nodes
 
-from sphinx_markdown_builder.contexts import AnnotationContext, IndentContext, SubContext, TableContext, Depth
-from sphinx_markdown_builder.decorators import PASS_THRU_ELEMENTS, PREF_SUFF_ELEMENTS, add_pass_thru, add_pref_suff
+from sphinx_markdown_builder.contexts import (
+    WrappedContext,
+    IndentContext,
+    SubContext,
+    TableContext,
+    UniqueString,
+    CommaSeparatedContext,
+)
 
-__docformat__ = "reStructuredText"
-
-# Characters that should be escaped in Markdown
-ESCAPE_RE = re.compile(r"([\\*`])")
+# Characters that should be escaped in Markdown:
+# ----------------------------------------------
+# Emphasis chars: * and _
+#   Emphasis char prefix/postfix should have a non-space char to its right/left.
+#   _ prefix/postfix must have a space char to its left/right (or beginning/end of the text).
+#   We cannot make the destination between prefix/postfix in regular expression, so we will enforce both for all.
+# Quote/Title: > and #
+#   Should only precede by space chars in the line.
+# Block char: `
+#   One ` only requires not to have double line break in between
+#   Double `` seems to be ignored
+#   Three ``` must be at the beginning of the line
+# Title: ----
+#   A line that only have - or =
+#   No spaces between them
+# Horizontal line: ----
+#   A line that only have 3 consecutive -, _, or * or more.
+#   Precedes an empty line or beginng of text.
+# Links: [text](link)
+# Images: ![alt](link)
+# Lists: +, -, *, 1.
+# Tables: |
+# Anything starting with 4 spaces is considered a block.
+#   Should add force spaces (\ ) to avoid it.
+# Escape char: \
+#   Should be followed by:
+#   Character Name
+#   \         backslash
+#   `         backtick (see also escaping backticks in code)
+#   *         asterisk
+#   _         underscore
+#   { }       curly braces
+#   [ ]       brackets
+#   < >       angle brackets
+#   ( )       parentheses
+#   #         pound sign
+#   +         plus sign
+#   -         minus sign (hyphen)
+#   .         dot
+#   !         exclamation mark
+#   |         pipe (see also escaping pipe in tables)
+ESCAPE_RE = re.compile(r"([\\*`]|(?:^|(?<=\s|_))_)", re.M)
 
 DOC_SECTION_ORDER = "head", "body", "foot"
+
+VISIT_DEPART_PATTERN = re.compile("(visit|depart)_(.+)")
 
 
 def escape_chars(txt: str):
@@ -25,10 +71,57 @@ def escape_chars(txt: str):
     return ESCAPE_RE.sub(r"\\\1", txt)
 
 
-@add_pass_thru(PASS_THRU_ELEMENTS)
-@add_pref_suff(PREF_SUFF_ELEMENTS)
+SKIP = UniqueString("skip")
+
+PREDEFINED_ELEMENTS = dict(  # pylint: disable=use-dict-literal
+    # Doctree elements for which Markdown element is <prefix><content><suffix>
+    emphasis=(WrappedContext, "*"),  # _ is more restrictive
+    strong=(WrappedContext, "**"),  # _ is more restrictive
+    subscript=(WrappedContext, "<sub>", "</sub>"),
+    superscript=(WrappedContext, "<sup>", "</sup>"),
+    desc_annotation=(WrappedContext, "*"),  # _ is more restrictive
+    field_name=(WrappedContext, "**"),  # e.g 'returns', 'parameters'
+    literal_strong=(WrappedContext, "**"),
+    literal_emphasis=(WrappedContext, "*"),
+    # Doctree elements to skip subtree
+    autosummary_toc=SKIP,
+    nbplot_epilogue=SKIP,
+    nbplot_not_rendered=SKIP,
+    nbplot_container=SKIP,
+    code_links=SKIP,
+    index=SKIP,
+    substitution_definition=SKIP,  # the doctree already contains the text with substitutions applied.
+    runrole_reference=SKIP,
+    # Doctree elements to ignore
+    document=None,
+    container=None,
+    inline=None,
+    definition_list=None,
+    definition_list_item=None,
+    term=None,
+    field_list_item=None,
+    mpl_hint=None,
+    pending_xref=None,
+    compound=None,
+    line=None,
+    line_block=None,
+    desc_addname=None,  # module pre-roll for class/method
+    desc_content=None,  # the description of the class/method
+    desc_name=None,  # name of the class/method
+    title_reference=None,
+    versionmodified=None,  # deprecation and compatibility messages
+    autosummary_table=None,  # Sphinx autosummary
+    # See https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html.
+    # Ignored table elements
+    raw=None,
+    tabular_col_spec=None,
+    colspec=None,
+    tgroup=None,
+)
+
+
 class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
-    def __init__(self, document, builder=None):
+    def __init__(self, document: nodes.document, builder=None):
         super().__init__(document)
         self.builder = builder
         self.settings = settings = document.settings
@@ -39,7 +132,8 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         # Warn only once per writer about unsupported elements
         self._warned = set()
         # Lookup table to get section list from name (default is ordered dict)
-        self._sections = dict.fromkeys(DOC_SECTION_ORDER, None)
+        # FIFO Sub context allow us to handle unique cases when post-processing is required.
+        self._sections: Dict[str, List[SubContext]] = dict.fromkeys(DOC_SECTION_ORDER, None)
 
         # Current section heading level during writing
         self.section_level = 0
@@ -50,10 +144,8 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         # Flag for whether to escape characters
         self._escape_text = True
 
-        self.depth = Depth()
-        self.enumerated_count = {}
-        # FIFO Sub context allow us to handle unique cases when post-processing is required.
-        self.sub_contexts: List[SubContext] = []
+        self.list_context: List[Union[str, int]] = []
+
         # Saves the current descriptor type
         self.desc_context: List[str] = []
 
@@ -62,70 +154,30 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
 
     def reset(self):
         """Initialize object for fresh read."""
-        for k in self._sections:
-            self._sections[k] = []
+        for k in DOC_SECTION_ORDER:
+            self._sections[k] = [SubContext()]
 
         self.section_level = 0
         self._in_docinfo = False
         self._escape_text = True
-
-        self.depth = Depth()
-        self.enumerated_count = {}
-        self.sub_contexts: List[SubContext] = []
+        self.list_context = []
         self.desc_context: List[str] = []
+
+    def ctx(self, section="body") -> SubContext:
+        return self._sections[section][-1]
 
     def astext(self):
         """Return the final formatted document as a string."""
-        parts = ["".join(self._sections[section]).strip() for section in DOC_SECTION_ORDER]
-        parts = [part + "\n\n" for part in parts if part]
-        return "".join(parts).strip() + "\n"
+        for section, ctx in self._sections.items():
+            while len(ctx) > 1:
+                self._pop_context(section=section)
 
-    def _iter_content(self, section="body"):
-        """We iterate over the content from the most recent context to the least"""
-        for ctx in reversed(self.sub_contexts):
-            yield ctx.content
+        parts = (self.ctx(section).make().strip() for section in DOC_SECTION_ORDER)
+        return "\n\n".join(parts).strip() + "\n"
 
-        yield self._sections[section]
-
-    def count_prev_eol(self, section="body"):
-        line_break_count = 0
-        for out_list in self._iter_content(section):
-            for out in reversed(out_list):
-                for char in reversed(out):
-                    if char == "\n":
-                        line_break_count += 1
-                    else:
-                        return line_break_count
-        return line_break_count
-
-    def ensure_eol(self, count=1, section="body"):
-        """Ensure the last line in current base is terminated by X new lines."""
-        missing_eol = count - self.count_prev_eol(section)
-        if missing_eol > 0:
-            self.add("\n" * missing_eol)
-
-    def add(self, value, section="body"):
-        """Add `string` to `section` or current output.
-
-        Parameters
-        ----------
-        value : str
-            String to add to output document
-        section : {'body', 'head', 'foot'}, optional
-            Section of document that generated text should be appended to, if
-            not already appending to an indent level.  If already appending to
-            an indent level, method will ignore `section`.  Use
-            :meth:`add_section` to append to a section unconditionally.
+    def add(self, value: str, section="body"):
         """
-        if len(self.sub_contexts) > 0:
-            self.sub_contexts[-1].add(value)
-        else:
-            self._sections[section].append(value)
-
-    def add_section(self, value: str, section="body"):
-        """Add `string` to `section` regardless of current output.
-
-        Can be useful when forcing write to header or footer.
+        Add `value` to `section`.
 
         Parameters
         ----------
@@ -134,193 +186,90 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         section : {'body', 'head', 'foot'}, optional
             Section of document that generated text should be appended to.
         """
-        self._sections[section].append(value)
+        self.ctx(section).add(value)
 
-    def add_context(self, ctx: SubContext):
-        self.sub_contexts.append(ctx)
+    def ensure_eol(self, count=1, section="body"):
+        """Ensure the last line in current base is terminated by X new lines."""
+        self.ctx(section).ensure_eol(count)
 
-    def pop_context(self, _node):
-        content = self.sub_contexts.pop().make()
+    def _push_context(self, ctx: SubContext, section="body"):
+        self._sections[section].append(ctx)
+
+    def _pop_context(self, _node=None, section="body"):
+        content = self._sections[section].pop().make()
         self.add(content)
 
-    def start_level(self, prefix, first_prefix=None):
+    def _start_level(self, prefix: str):
         """Create a new IndentLevel with `prefix` and `first_prefix`"""
-        self.add_context(IndentContext(prefix, first_prefix))
+        self._push_context(IndentContext(prefix))
 
-    finish_level = pop_context
+    _finish_level = _pop_context
 
-    @property
-    def ctx(self) -> SubContext:
-        if len(self.sub_contexts) == 0:
-            raise nodes.SkipNode
-        return self.sub_contexts[-1]
+    def _start_emphasis(self, start_mark: str, end_mark: Optional[str] = None):
+        self._push_context(WrappedContext(start_mark, end_mark))
+
+    _end_emphasis = _pop_context
+
+    def _pass(self, _node=None):
+        pass
+
+    def _skip(self, _node=None):
+        raise nodes.SkipNode
+
+    def _has_attr(self, item):
+        try:
+            super().__getattribute__(item)
+            return True
+        except AttributeError:
+            return False
+
+    def __getattribute__(self, item):
+        # First try to get an existing attribute
+        try:
+            return super().__getattribute__(item)
+        except AttributeError as ex:
+            exp = ex
+
+        match = VISIT_DEPART_PATTERN.fullmatch(item)
+        if match is None:
+            raise exp
+
+        state, element = match.groups()
+        if element in PREDEFINED_ELEMENTS:
+            action = PREDEFINED_ELEMENTS[element]
+            if action is None:
+                return self._pass
+            if action is SKIP:
+                return self._skip
+            if isinstance(action, (list, tuple)) and isinstance(action[0], type) and issubclass(action[0], SubContext):
+                if state == "visit":
+                    sub_context, *args = action
+                    return lambda _node: self._push_context(sub_context(*args))
+                return self._pop_context
+
+        # If one of the handlers is defined, automatically add the other
+        if self._has_attr(f"visit_{element}") or self._has_attr(f"depart_{element}"):
+            return self._pass
+
+        raise exp
 
     ################################################################################
     # visit/depart handlers
     ################################################################################
 
-    def visit_autosummary_toc(self, _node):
-        raise nodes.SkipNode
-
-    def depart_autosummary_toc(self, _node):
-        raise nodes.SkipNode
-
-    def visit_title(self, _node):
-        self.ensure_eol(2)
-        self.add((self.section_level * "#") + " ")
-
-    def visit_desc(self, node):
-        self.desc_context.append(node.attributes.get("desctype", ""))
-
-    def depart_desc(self, _node):
-        self.desc_context.pop()
-
-    def visit_desc_annotation(self, _node):
-        # annotation, e.g 'method', 'class', or a signature
-        self.add_context(AnnotationContext())
-
-    depart_desc_annotation = pop_context
-
-    def visit_desc_name(self, node):
-        # name of the class/method
-        # Escape "__" which is a formatting string for markdown
-        if node.rawsource.startswith("__"):
-            self.add("\\")
-
-    def depart_desc_name(self, _node):
-        if self.desc_context[-1] in ("function", "method", "class"):
-            self.add("(")
-
-    def visit_desc_signature(self, node):
-        # the main signature of class/method
-
-        # Insert anchors if enabled by the builder
-        if self.builder.insert_anchors_for_signatures:
-            for sig_id in node.get("ids", ()):
-                self.add(f'<a name="{sig_id}"></a>')
-
-        # We don't want methods to be at the same level as classes,
-        # If signature has a non-null class, that's means it is a signature
-        # of a class method
-        self.ensure_eol()
-        if "class" in node.attributes and node.attributes["class"]:
-            self.add("#### ")
-        else:
-            self.add("### ")
-
-    def depart_desc_signature(self, _node):
-        # the main signature of class/method
-        if self.desc_context[-1] in ("function", "method", "class"):
-            self.add(")")
-        self.ensure_eol()
-
-    def visit_desc_parameter(self, node):
-        # single method/class ctr param
-        pass
-
-    def depart_desc_parameter(self, node):
-        # single method/class ctr param
-        # if there are additional params, include a comma
-        if node.next_node(descend=False, siblings=True):
-            self.add(", ")
-
-    # list of parameters/return values/exceptions
-    #
-    # field_list
-    #   field
-    #       field_name (e.g 'returns/parameters/raises')
-    #
-
-    def visit_field_list(self, _node):
-        self.ensure_eol(2)
-
-    def depart_field_list(self, _node):
-        self.ensure_eol(2)
-
-    def visit_field(self, _node):
-        self.ensure_eol(2)
-
-    def depart_field(self, _node):
-        self.ensure_eol(1)
-
-    def visit_field_name(self, _node):
-        # field name, e.g 'returns', 'parameters'
-        self.add("* **")
-
-    def depart_field_name(self, _node):
-        self.add("**")
-
-    def visit_field_body(self, _node):
-        self.ensure_eol(1)
-        self.start_level("    ")
-
-    depart_field_body = finish_level
-
-    def visit_literal_strong(self, _node):
-        self.add("**")
-
-    def depart_literal_strong(self, _node):
-        self.add("**")
-
-    def visit_literal_emphasis(self, _node):
-        self.add("*")
-
-    def depart_literal_emphasis(self, _node):
-        self.add("*")
-
-    def visit_title_reference(self, node):
-        pass
-
-    def depart_title_reference(self, node):
-        pass
-
-    def visit_versionmodified(self, node):
-        """
-        deprecation and compatibility messages
-        type will hold something like 'deprecated'
-        """
-        node_type = node.attributes["type"].capitalize()
-        self.add(f"**{node_type}:** ")
-
-    def depart_versionmodified(self, node):
-        """deprecation and compatibility messages"""
-
     def visit_warning(self, _node):
         """Sphinx warning directive."""
         self.add("**WARNING**: ")
-
-    def depart_warning(self, node):
-        """Sphinx warning directive."""
 
     def visit_note(self, _node):
         """Sphinx note directive."""
         self.add("**NOTE**: ")
 
-    def depart_note(self, node):
-        """Sphinx note directive."""
-
     def visit_seealso(self, _node):
         self.add("**SEE ALSO**: ")
 
-    def depart_seealso(self, _node):
-        pass
-
     def visit_attention(self, _node):
         self.add("**ATTENTION**: ")
-
-    def depart_attention(self, _node):
-        pass
-
-    def visit_rubric(self, _node):
-        """Sphinx Rubric, a heading without relation to the document sectioning
-        https://docutils.sourceforge.net/docs/ref/rst/directives.html#rubric."""
-        self.ensure_eol(2)
-        self.add("### ")
-
-    def depart_rubric(self, _node):
-        """Sphinx Rubric, a heading without relation to the document sectioning
-        https://docutils.sourceforge.net/docs/ref/rst/directives.html#rubric."""
-        self.ensure_eol(2)
 
     def visit_image(self, node):
         """Image directive."""
@@ -338,132 +287,6 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         # It will be handled by the visit/depart handlers of the paragraph.
         self.add(f"![{alt}]({uri})")
 
-    def depart_image(self, node):
-        """Image directive."""
-
-    def visit_autosummary_table(self, node):
-        """Sphinx autosummary See https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html."""
-
-    def depart_autosummary_table(self, node):
-        """Sphinx autosummary See https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html."""
-
-    ################################################################################
-    # tables
-    #
-    # docutils.nodes.table
-    #     docutils.nodes.tgroup [cols=x]
-    #       docutils.nodes.colspec
-    #
-    #       docutils.nodes.thead
-    #         docutils.nodes.row
-    #         docutils.nodes.entry
-    #         docutils.nodes.entry
-    #         docutils.nodes.entry
-    #
-    #       docutils.nodes.tbody
-    #         docutils.nodes.row
-    #         docutils.nodes.entry
-
-    def visit_raw(self, _node):
-        self.depth.descend("raw")
-
-    def depart_raw(self, _node):
-        self.depth.ascend("raw")
-
-    def visit_tabular_col_spec(self, node):
-        pass
-
-    def depart_tabular_col_spec(self, node):
-        pass
-
-    def visit_colspec(self, node):
-        pass
-
-    def depart_colspec(self, node):
-        pass
-
-    def visit_tgroup(self, _node):
-        self.depth.descend("tgroup")
-
-    def depart_tgroup(self, _node):
-        self.depth.ascend("tgroup")
-
-    @property
-    def table_ctx(self) -> TableContext:
-        ctx = self.ctx
-        assert isinstance(ctx, TableContext)
-        return ctx
-
-    def visit_table(self, _node):
-        self.add_context(TableContext())
-
-    depart_table = pop_context
-
-    def visit_thead(self, _node):
-        self.table_ctx.enter_head()
-
-    def depart_thead(self, _node):
-        self.table_ctx.exit_head()
-
-    def visit_tbody(self, _node):
-        self.table_ctx.enter_body()
-
-    def depart_tbody(self, _node):
-        self.table_ctx.exit_body()
-
-    def visit_row(self, _node):
-        self.table_ctx.enter_row()
-
-    def depart_row(self, _node):
-        self.table_ctx.exit_row()
-
-    def visit_entry(self, _node):
-        self.table_ctx.enter_entry()
-
-    def depart_entry(self, _node):
-        self.table_ctx.exit_entry()
-
-    def visit_enumerated_list(self, _node):
-        self.depth.descend("list")
-        self.depth.descend("enumerated_list")
-
-    def depart_enumerated_list(self, _node):
-        self.enumerated_count[self.depth.get("list")] = 0
-        self.depth.ascend("enumerated_list")
-        self.depth.ascend("list")
-
-    def visit_bullet_list(self, _node):
-        self.depth.descend("list")
-        self.depth.descend("bullet_list")
-
-    def depart_bullet_list(self, _node):
-        self.depth.ascend("bullet_list")
-        self.depth.ascend("list")
-
-    def visit_list_item(self, node):
-        self.depth.descend("list_item")
-        depth = self.depth.get("list")
-        depth_padding = "    " * (depth - 1)
-        marker = "*"
-        if node.parent.tagname == "enumerated_list":
-            if depth not in self.enumerated_count:
-                self.enumerated_count[depth] = 1
-            else:
-                self.enumerated_count[depth] = self.enumerated_count[depth] + 1
-            marker = str(self.enumerated_count[depth]) + "."
-        # Make sure the list item prefix starts at a new line
-        self.ensure_eol()
-        self.add(depth_padding + marker + " ")
-
-    def depart_list_item(self, _node):
-        self.depth.ascend("list_item")
-        # Make sure the list item ends with a new line
-        self.ensure_eol()
-
-    ##########################################################################
-    # doctree2md
-    ##########################################################################
-
     # noinspection PyPep8Naming
     def visit_Text(self, node):  # pylint: disable=invalid-name
         text = node.astext().replace("\r", "")
@@ -471,15 +294,21 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
             text = escape_chars(text)
         self.add(text)
 
-    # noinspection PyPep8Naming
-    def depart_Text(self, node):  # pylint: disable=invalid-name
-        pass
+    def visit_comment(self, _node):
+        self.ensure_eol()
+        self._escape_text = False
+        self._push_context(WrappedContext("<!-- ", " -->"))
 
-    def visit_comment(self, node):
-        txt = node.astext()
-        if txt.strip():
-            self.add(f"<!-- {txt} -->\n")
-        raise nodes.SkipNode
+    def depart_comment(self, _node):
+        self._pop_context()
+        self._escape_text = True
+
+    def visit_paragraph(self, _node):
+        self.ensure_eol(2)
+
+    depart_paragraph = visit_paragraph
+    visit_compact_paragraph = visit_paragraph
+    depart_compact_paragraph = depart_paragraph
 
     def visit_docinfo(self, _node):
         self._in_docinfo = True
@@ -487,35 +316,17 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
     def depart_docinfo(self, _node):
         self._in_docinfo = False
 
-    def process_docinfo_item(self, node):
+    def _process_docinfo_item(self, node):
         """Called explicitly from methods in this class."""
-        self.add_section(f"% {node.astext()}\n", section="head")
+        self.ensure_eol(1, section="head")
+        self.add(f"% {node.astext()}\n", section="head")
         raise nodes.SkipNode
 
     def visit_definition(self, _node):
         self.ensure_eol(2)
-        self.start_level("    ")
+        self._start_level("    ")
 
-    depart_definition = finish_level
-
-    @classmethod
-    def is_paragraph_requires_eol(cls, node):
-        """
-        - entry (table)
-          ==> No new line
-        - list_item/field_name/field_body
-          ==> New line is handled at its visit/depart handlers
-        """
-        return not isinstance(
-            node.parent,
-            (nodes.entry, nodes.list_item, nodes.field_name, nodes.field_body),
-        )
-
-    def visit_paragraph(self, node):
-        if self.is_paragraph_requires_eol(node):
-            self.ensure_eol(2)
-
-    depart_paragraph = visit_paragraph
+    depart_definition = _finish_level
 
     def visit_math_block(self, _node):
         # docutils math block
@@ -578,23 +389,17 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
 
     def visit_doctest_block(self, _node):
         self._escape_text = False
-        self.ensure_eol(1)
+        self.ensure_eol()
         self.add("```python")
-        self.ensure_eol(1)
+        self.ensure_eol()
 
     depart_doctest_block = depart_literal_block
 
     def visit_block_quote(self, _node):
-        self.start_level("> ")
+        self.ensure_eol()
+        self._start_level("> ")
 
-    depart_block_quote = finish_level
-
-    def visit_section(self, _node):
-        self.section_level += 1
-        self.ensure_eol(2)
-
-    def depart_section(self, _node):
-        self.section_level -= 1
+    depart_block_quote = _finish_level
 
     def visit_problematic(self, node):
         self.ensure_eol(2)
@@ -614,6 +419,17 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         self.ensure_eol(2)
         raise nodes.SkipNode
 
+    def visit_section(self, _node):
+        self.section_level += 1
+        self.ensure_eol(2)
+
+    def depart_section(self, _node):
+        self.section_level -= 1
+
+    def visit_title(self, _node):
+        self.ensure_eol(2)
+        self.add((self.section_level * "#") + " ")
+
     def depart_title(self, _node):
         self.ensure_eol(2)
 
@@ -623,111 +439,87 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
 
     depart_subtitle = depart_title
 
+    def visit_rubric(self, _node):
+        """Sphinx Rubric, a heading without relation to the document sectioning
+        https://docutils.sourceforge.net/docs/ref/rst/directives.html#rubric."""
+        self.ensure_eol(2)
+        self.add("### ")
+
+    depart_rubric = depart_title
+
     def visit_transition(self, _node):
         # Simply replace a transition by a horizontal rule.
         # Could use three or more '*', '_' or '-'.
-        self.ensure_eol()
-        self.add("---")
         self.ensure_eol(2)
+        self.add("---")
+        self.ensure_eol(1)
         raise nodes.SkipNode
 
-    def _refuri2http(self, node):
-        # Replace 'refuri' in reference with HTTP address, if possible
-        # None for no possible address
-        url = node.get("refuri") or ""
-
-        # Do not modify external URL in any way
-        if not node.get("internal"):
+    def _adjust_url(self, url: str):
+        """Replace `refuri` in reference with HTTP address, if possible"""
+        if not self.markdown_http_base:
             return url
 
         # If HTTP page build URL known, make link relative to that.
-        if self.markdown_http_base:
-            this_doc = self.builder.current_doc_name
-            if url == "":  # Reference to this doc
-                url = self.builder.get_target_uri(this_doc)
-            else:  # URL is relative to the current docname.
-                this_dir = posixpath.dirname(this_doc)
-                if this_dir:
-                    url = posixpath.normpath(f"{this_dir}/{url}")
-            url = f"{self.markdown_http_base}/{url}"
+        this_doc = self.builder.current_doc_name
+        if url == "":  # Reference to this doc
+            url = self.builder.get_target_uri(this_doc)
+        else:  # URL is relative to the current docname.
+            this_dir = posixpath.dirname(this_doc)
+            if this_dir:
+                url = posixpath.normpath(f"{this_dir}/{url}")
+        return f"{self.markdown_http_base}/{url}"
+
+    def _fetch_ref_uri(self, node):
+        uri = node.get("refuri", "")
+
+        # Do not modify external URL in any way
+        if not node.get("internal", False):
+            return uri
+
+        uri = self._adjust_url(uri)
 
         # Whatever the URL is, add the anchor to it
-        if "refid" in node:
-            url += "#" + node["refid"]
+        ref_id = node.get("refid", None)
+        if ref_id is not None:
+            uri = f"#{ref_id}"
 
-        return url
+        return uri
 
     def visit_reference(self, node):
-        # If no target possible, pass through.
-        url = self._refuri2http(node)
-        if url is None:
-            return
-        self.add("[")
-        for child in node.children:
-            child.walkabout(self)
-        self.add(f"]({url})")
-        raise nodes.SkipNode
+        url = self._fetch_ref_uri(node)
+        self._push_context(WrappedContext("[", f"]({url})"))
 
-    def depart_reference(self, node):
-        pass
-
-    def visit_nbplot_epilogue(self, node):
-        raise nodes.SkipNode
-
-    def visit_nbplot_not_rendered(self, node):
-        raise nodes.SkipNode
-
-    def visit_code_links(self, node):
-        raise nodes.SkipNode
-
-    def visit_index(self, node):
-        # Drop index entries
-        raise nodes.SkipNode
-
-    def visit_substitution_definition(self, node):
-        # Drop substitution definitions - the doctree already contains the text
-        # with substitutions applied.
-        raise nodes.SkipNode
-
-    def visit_only(self, node):
-        if node["expr"] == "markdown":
-            self.add(dedent(node.astext()))
-            self.ensure_eol()
-        raise nodes.SkipNode
-
-    def visit_runrole_reference(self, node):
-        raise nodes.SkipNode
+    depart_reference = _pop_context
 
     def visit_download_reference(self, node):
-        # If not resolving internal links, or there is no filename specified,
-        # pass through.
-        filename = node.get("filename")
-        if None in (self.markdown_http_base, filename):
+        filename = self._adjust_url(node.get("filename", ""))
+        self._push_context(WrappedContext("[", f"]({filename})"))
+
+    depart_download_reference = _pop_context
+
+    def visit_target(self, node):
+        ref_id = node.get("refid", None)
+        if ref_id is None:
             return
-        target_url = f"{self.markdown_http_base}/_downloads/{filename}"
-        self.add(f"[{node.astext()}]({target_url})")
-        raise nodes.SkipNode
+        self._escape_text = False
+        self.ensure_eol()
+        self.add(f'<a id="{ref_id}"></a>')
+        self.ensure_eol()
+        self._escape_text = True
 
-    def depart_download_reference(self, node):
-        pass
-
-    visit_compact_paragraph = visit_paragraph
-
-    depart_compact_paragraph = depart_paragraph
-
-    def visit_nbplot_container(self, node):
-        pass
-
-    def depart_nbplot_container(self, node):
-        pass
+    def visit_only(self, node):
+        if node["expr"] != "markdown":
+            raise nodes.SkipNode
+        self.add(dedent(node.astext()))
+        self.ensure_eol()
 
     def unknown_visit(self, node):
         """Warn once per instance for unsupported nodes.
-
         Intercept docinfo items if in docinfo block.
         """
         if self._in_docinfo:
-            self.process_docinfo_item(node)
+            self._process_docinfo_item(node)
             return
         # We really don't know this node type, warn once per node type
         node_type = node.__class__.__name__
@@ -735,3 +527,194 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
             self.document.reporter.warning("The " + node_type + " element not yet supported in Markdown.")
             self._warned.add(node_type)
         raise nodes.SkipNode
+
+    ################################################################################
+    # desc
+    ################################################################################
+    # desc (desctype: {function, class, method, etc.)
+    #   desc_signature
+    #     desc_name
+    #       desc_annotation (optional)
+    #     desc_parameterlist
+    #       desc_parameter
+    #   desc_content
+    #     field_list
+    #       field
+    #         field_name (e.g 'returns/parameters/raises')
+    #         field_body
+    ################################################################################
+
+    def visit_desc(self, node):
+        self.desc_context.append(node.attributes.get("desctype", ""))
+
+    def depart_desc(self, _node):
+        self.desc_context.pop()
+
+    def visit_desc_signature(self, node):
+        """the main signature of class/method"""
+
+        # Insert anchors if enabled by the builder
+        if self.builder.insert_anchors_for_signatures:
+            for sig_id in node.get("ids", ()):
+                self.add(f'<a name="{sig_id}"></a>')
+
+        # We don't want methods to be at the same level as classes,
+        # If signature has a non-null class, that's means it is a signature
+        # of a class method
+        self.ensure_eol()
+        if node.attributes.get("class", None):
+            self.add("#### ")
+        else:
+            self.add("### ")
+
+    def visit_desc_parameterlist(self, _node):
+        self._push_context(WrappedContext("(", ")"))
+        self._push_context(CommaSeparatedContext(", "))
+
+    def depart_desc_parameterlist(self, _node):
+        self._pop_context()
+        self._pop_context()
+
+    def depart_desc_signature(self, _node):
+        """the main signature of class/method"""
+        self.ensure_eol()
+
+    def sep_ctx(self, section="body") -> CommaSeparatedContext:
+        ctx = self.ctx(section)
+        assert isinstance(ctx, CommaSeparatedContext)
+        return ctx
+
+    def visit_desc_parameter(self, _node):
+        """single method/class ctr param"""
+        self.sep_ctx().enter_parameter()
+
+    def depart_desc_parameter(self, _node):
+        self.sep_ctx().exit_parameter()
+
+    def visit_field_list(self, _node):
+        self._start_list("*")
+
+    def depart_field_list(self, _node):
+        self._end_list()
+
+    def visit_field(self, _node):
+        self._start_list_item()
+
+    def depart_field(self, _node):
+        self._end_list_item()
+
+    def visit_field_body(self, _node):
+        self.ensure_eol(1)
+        self._push_context(SubContext())
+
+    def depart_field_body(self, _node):
+        self._pop_context()
+        self.ensure_eol(1)
+
+    def visit_versionmodified(self, node):
+        """
+        deprecation and compatibility messages
+        type will hold something like 'deprecated'
+        """
+        node_type = node.attributes["type"].capitalize()
+        self.add(f"**{node_type}:** ")
+
+    ################################################################################
+    # tables
+    ################################################################################
+    # table
+    #   tgroup [cols=x]
+    #     colspec
+    #     thead
+    #       row
+    #         entry
+    #           paragraph (optional)
+    #     tbody
+    #       row
+    #         entry
+    #           paragraph (optional)
+    ###############################################################################
+
+    def table_ctx(self, section="body") -> TableContext:
+        ctx = self.ctx(section)
+        assert isinstance(ctx, TableContext)
+        return ctx
+
+    def visit_table(self, _node):
+        self._push_context(TableContext())
+
+    depart_table = _pop_context
+
+    def visit_thead(self, _node):
+        self.table_ctx().enter_head()
+
+    def depart_thead(self, _node):
+        self.table_ctx().exit_head()
+
+    def visit_tbody(self, _node):
+        self.table_ctx().enter_body()
+
+    def depart_tbody(self, _node):
+        self.table_ctx().exit_body()
+
+    def visit_row(self, _node):
+        self.table_ctx().enter_row()
+
+    def depart_row(self, _node):
+        self.table_ctx().exit_row()
+
+    def visit_entry(self, _node):
+        self.table_ctx().enter_entry()
+
+    def depart_entry(self, _node):
+        self.table_ctx().exit_entry()
+
+    ################################################################################
+    # lists
+    ################################################################################
+    # enumerated_list/bullet_list
+    #     list_item
+    #       paragraph (optional)
+    ###############################################################################
+
+    def _start_list(self, marker: Union[int, str]):
+        self.ensure_eol()
+        if isinstance(marker, str) and marker[-1] != " ":
+            marker += " "
+        self.list_context.append(marker)
+
+    def _end_list(self):
+        self.list_context.pop()
+        # We need two line breaks to make sure the next paragraph will not merge into the list
+        self.ensure_eol(2)
+
+    def _start_list_item(self):
+        marker = self.list_context[-1]
+        if isinstance(marker, int):
+            marker = f"{marker}. "
+            self.list_context[-1] += 1
+        # Make sure the list item prefix starts at a new line
+        self.ensure_eol()
+        self._push_context(IndentContext(marker, only_first=True))
+
+    def _end_list_item(self):
+        self._pop_context()
+        # Make sure the list item ends with a new line
+        self.ensure_eol()
+
+    def visit_enumerated_list(self, _node):
+        self._start_list(1)
+
+    def depart_enumerated_list(self, _node):
+        self._end_list()
+
+    def visit_bullet_list(self, node):
+        self._start_list(node.attributes.get("bullet", "*"))
+
+    depart_bullet_list = depart_enumerated_list
+
+    def visit_list_item(self, _node):
+        self._start_list_item()
+
+    def depart_list_item(self, _node):
+        self._end_list_item()

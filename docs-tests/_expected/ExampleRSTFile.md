@@ -1,3 +1,6 @@
+<!-- Taken form https://github.com/openedx/edx-documentation/blob/master/en_us/edx_style_guide/source/ExampleRSTFile.rst -->
+<a id="anchor-for-examplerstfile"></a>
+
 # Example .rst File
 
 If you work with edX documentation source files, you might find this file
@@ -57,6 +60,7 @@ Use hash symbols for ordered lists.
 1. Select **Advanced Settings**.
 2. Find the **Course Advertised Start Date** policy key.
 3. Enter the value you want to display.
+
 **NOTE**: 
 
 Ordered lists usually use numerals. Nested ordered lists (ordered lists inside
@@ -81,15 +85,15 @@ three spaces. The first bullet in the unordered list must be flush with the
 text in the ordered list.
 
 1. Review your entry to verify that the key is accurate and that it is
+   surrounded by quotation marks. If there is a list of keys, they must be
+   comma separated.
 
-    surrounded by quotation marks. If there is a list of keys, they must be
-    comma separated.
-
-        * In this example, the key for the Annotation Problem tool is the only
-    value in the list.
-        * In this example, the key for the Annotation Problem tool is added at
-    the beginning of a list of other keys.
+   * In this example, the key for the Annotation Problem tool is the only
+     value in the list.
+   * In this example, the key for the Annotation Problem tool is added at
+     the beginning of a list of other keys.
 2. Select **Save Changes**.
+
 ![An unordered (bulleted) list inside an ordered (numbered) list.](Images/Lists_UL_inside_OL.png)
 
 #### Ordered List inside Unordered List
@@ -99,15 +103,15 @@ two spaces. The first number or letter of the ordered list must be flush with
 the text in the unordered list.
 
 * Review your entry to verify that the key is accurate and that it is
+  surrounded by quotation marks. If there is a list of keys, they must be comma
+  separated.
 
-    surrounded by quotation marks. If there is a list of keys, they must be comma
-    separated.
-
-        1. In this example, the key for the Annotation Problem tool is the only
-    value in the list.
-        2. In this example, the key for the Annotation Problem tool is added at the
-    beginning of a list of other keys.
+  1. In this example, the key for the Annotation Problem tool is the only
+     value in the list.
+  2. In this example, the key for the Annotation Problem tool is added at the
+     beginning of a list of other keys.
 * Select **Save Changes**.
+
 <!-- There isn't a screen shot of the above example yet because these lists don't -->
 <!-- render correctly locally, and searching for an example in the built docs -->
 <!-- online was taking too much time. -->
@@ -119,15 +123,15 @@ unordered list two spaces. The first bullet of the second unordered list must
 be flush with the text in the unordered list.
 
 * Review your entry to verify that the key is accurate and that it is
+  surrounded by quotation marks. If there is a list of keys, they must be
+  comma separated.
 
-    surrounded by quotation marks. If there is a list of keys, they must be
-    comma separated.
-
-        1. In this example, the key for the Annotation Problem tool is the only
-    value in the list.
-        2. In this example, the key for the Annotation Problem tool is added at the
-    beginning of a list of other keys.
+  1. In this example, the key for the Annotation Problem tool is the only
+     value in the list.
+  2. In this example, the key for the Annotation Problem tool is added at the
+     beginning of a list of other keys.
 * Select **Save Changes**.
+
 ![An ordered (numbered) list inside an unordered (bulleted) list.](Images/Lists_UL_inside_UL.png)
 
 #### Ordered List inside Ordered List
@@ -138,15 +142,15 @@ in the numbered list. The first ordered list uses numerals, and the second
 uses letters.
 
 1. Review your entry to verify that the key is accurate and that it is
+   surrounded by quotation marks. If there is a list of keys, they must be
+   comma separated.
 
-    surrounded by quotation marks. If there is a list of keys, they must be
-    comma separated.
-
-        1. In this example, the key for the Annotation Problem tool is the only
-    value in the list.
-        2. In this example, the key for the Annotation Problem tool is added at
-    the beginning of a list of other keys.
+   1. In this example, the key for the Annotation Problem tool is the only
+      value in the list.
+   2. In this example, the key for the Annotation Problem tool is added at
+      the beginning of a list of other keys.
 2. Select **Save Changes**.
+
 <!-- There isn't a screen shot of the above example yet because these lists don't -->
 <!-- render correctly locally, and searching for an example in the built docs -->
 <!-- online was taking too much time. -->
@@ -158,15 +162,15 @@ image directive flush with the text in the list. That is, indent three spaces
 for ordered lists and two spaces for unordered lists.
 
 1. In the `lms.yml` and `studio.yml` files, set the value of
-`CERTIFICATES_HTML_VIEW` within the `FEATURES` object  to `true`.
-```bash
-"FEATURES": {
-    ...
-    'CERTIFICATES_HTML_VIEW': true,
-    ...
-}
-```
+   `CERTIFICATES_HTML_VIEW` within the `FEATURES` object  to `true`.
 
+   ```bash
+   "FEATURES": {
+       ...
+       'CERTIFICATES_HTML_VIEW': true,
+       ...
+   }
+   ```
 2. Save the `lms.yml` and `studio.yml` files.
 
 ## Conditional Text
@@ -244,12 +248,16 @@ Anchors use the following syntax.
 The following example shows an anchor for a section, followed by the heading
 for that section. `SFD SN Keyboard Shortcuts` is the anchor text.
 
-## Keyboard Shortcuts for Notes
+<a id="sfd-sn-keyboard-shortcuts"></a>
+
+#### Keyboard Shortcuts for Notes
 
 To create cross-references to locations in the same document, you can use the
 anchor only, or you can use your own text. The anchor text is never visible in
 output. It is replaced by the text of the heading that follows the anchor or
 the text that you specify.
+
+#### Cross-References Using the Anchor Only
 
 To add a cross-reference to a specific location in a document and use the text
 of the heading for that location as link text, use `:ref:`Anchor Text``
@@ -265,6 +273,8 @@ text, and “Keyboard Shortcuts for Notes” will be an active link.
 For more information about using keyboard shortcuts, see Keyboard Shortcuts
 for Notes.
 ```
+
+#### Cross-References Using Specified Link Text
 
 For internal cross-references that use text other than the heading for the
 section that you’re linking to, use `:ref:`specified text<Anchor Text>``
@@ -299,16 +309,18 @@ intersphinx_map_ID:Anchor Name
 
 For example:
 
-partnercoursestaff:Release Dates
+[Release Dates](https://edx.readthedocs.io/projects/edx-partner-course-staff/en/latest/developing_course/controlling_content_visibility.html#release-dates)
 
 To find the intersphinx map ID for the document that you want, follow these
 steps.
 
 1. Open the conf.py file in the [edx-documentation/shared](https://github.com/openedx/edx-documentation/blob/master/shared/conf.py) folder, and then
-locate the following line.`intersphinx_mapping = {`
+   locate the following line.
+
+   `intersphinx_mapping = {`
 2. In the list that follows this line, find the ID for the document that you
-want. The text between the single quotation marks (’) at the beginning of
-each line is the intersphinx map ID for the document.
+   want. The text between the single quotation marks (’) at the beginning of
+   each line is the intersphinx map ID for the document.
 
 The following intersphinx map IDs are the most frequently used.
 
@@ -350,44 +362,45 @@ A cross-reference to an external web page has several elements.
 
 * The URL of the external web page.
 * The text to use for the cross-reference. This text becomes an anchor in the
-file that contains the cross-reference.
+  file that contains the cross-reference.
 * An `include` directive in the file that contains the cross-reference to the
-links.rst file that is located in the `edx-documentation/en_us/links/`
-folder.
+  links.rst file that is located in the `edx-documentation/en_us/links/`
+  folder.
 * An entry in the links.rst file.
 
 To create an external cross-reference, follow these steps.
 
 1. In the paragraph where you want the cross-reference, add the text that you
-want to use for the link, formatted as follows (where “Release Pages” is the
-link text). This creates an anchor out of that text.
-```default
-The edX engineering wiki `Release Pages`_ provide access to detailed
-information about every change made to the edx-platform GitHub
-repository.
-```
+   want to use for the link, formatted as follows (where “Release Pages” is the
+   link text). This creates an anchor out of that text.
 
+   ```default
+   The edX engineering wiki `Release Pages`_ provide access to detailed
+   information about every change made to the edx-platform GitHub
+   repository.
+   ```
 2. In the file that contains the cross-reference, add an `include` directive
-for the `edx-documentation/en_us/links/links.rst` file if one does not
-already exist. These `include` directives are typically at the end of the
-file.
-```default
-.. include:: ../../links/links.rst
-```
+   for the `edx-documentation/en_us/links/links.rst` file if one does not
+   already exist. These `include` directives are typically at the end of the
+   file.
 
-**NOTE**: 
+   ```default
+   .. include:: ../../links/links.rst
+   ```
 
-The path to the links.rst file depends on the location of the file where
-you are creating the link. For example, the path might be
-`../../../links/links.rst` or `../links/links.rst`.
+   **NOTE**: 
 
+   The path to the links.rst file depends on the location of the file where
+   you are creating the link. For example, the path might be
+   `../../../links/links.rst` or `../links/links.rst`.
 3. In the `edx-documentation/en_us/links/links.rst` file, add an entry for
-the anchor text and the URL of the external website, formatted as follows.
-Make sure that the anchor text in this file matches the anchor text in the
-file that contains the cross-reference exactly, including capitalization.> 
-> ```default
-> .. _Release Pages: https://openedx.atlassian.net/wiki/display/ENG/Release+Pages
-> ```
+   the anchor text and the URL of the external website, formatted as follows.
+   Make sure that the anchor text in this file matches the anchor text in the
+   file that contains the cross-reference exactly, including capitalization.
+
+   ```default
+   .. _Release Pages: https://openedx.atlassian.net/wiki/display/ENG/Release+Pages
+   ```
 
 Readers will see the following text. “Release Pages” will be an active link.
 
@@ -406,6 +419,8 @@ Image references look like this.
 Image links can include optional specifications such as height, width, or
 scale. Alternative text for screen readers is required for each image. Provide
 text that is useful to someone who might not be able to see the image.
+
+<a id="examples-of-tables"></a>
 
 ## Tables
 
@@ -526,11 +541,11 @@ to render correctly.
      - Maximum possible grade value.
 ```
 
-| Field         | Type    | Details                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-|---------------|---------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `correct_map` | dict    | For each problem ID value listed by `answers`, provides:<br/>* `correctness`: string; ‘correct’, ‘incorrect’<br/>* `hint`: string; Gives optional hint. Nulls allowed.<br/>* `hintmode`: string; None, ‘on_request’, ‘always’. Nulls allowed.<br/>* `msg`: string; Gives extra message response.<br/>* `npoints`: integer; Points awarded for this `answer_id`. Nulls allowed.<br/>* `queuestate`: dict; None when not queued, else `{key:'', time:''}`<br/>where `key` is a secret string dump of a DateTime object in the form<br/>‘%Y%m%d%H%M%S’. Nulls allowed.<br/> |
-| `grade`       | integer | Current grade value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `max_grade`   | integer | Maximum possible grade value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Field         | Type    | Details                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+|---------------|---------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `correct_map` | dict    | For each problem ID value listed by `answers`, provides:<br/><br/>* `correctness`: string; ‘correct’, ‘incorrect’<br/>* `hint`: string; Gives optional hint. Nulls allowed.<br/>* `hintmode`: string; None, ‘on_request’, ‘always’. Nulls allowed.<br/>* `msg`: string; Gives extra message response.<br/>* `npoints`: integer; Points awarded for this `answer_id`. Nulls allowed.<br/>* `queuestate`: dict; None when not queued, else `{key:'', time:''}`<br/>  where `key` is a secret string dump of a DateTime object in the form<br/>  ‘%Y%m%d%H%M%S’. Nulls allowed. |
+| `grade`       | integer | Current grade value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `max_grade`   | integer | Maximum possible grade value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ## Code Formatting
 
@@ -587,7 +602,11 @@ being displayed in different colors.
 </problem>
 ```
 
+<!-- Taken from https://github.com/openedx/edx-documentation/blob/master/en_us/links/links.rst -->
 <!-- Include this file in any file that includes a non-doc link. -->
+
+## Links
+
 <!-- EdX Links -->
 <!-- GitHub Links -->
 <!-- EDX VMs -->
