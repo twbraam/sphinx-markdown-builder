@@ -11,10 +11,34 @@ pip3 install git+https://github.com/liran-funaro/sphinx-markdown-builder@main
 
 ## Usage
 
+Add the extension to your `conf.py` file:
+```python
+extensions = [
+    ...,
+    "sphinx_markdown_builder",
+    ...,
+]
+```
+
 Build markdown files with `sphinx-build` command
 ```sh
 sphinx-build -M markdown ./docs ./build
 ```
+
+## Configurations
+
+You can add the following configurations to your `conf.py` file:
+
+* `markdown_http_base`: If set, all references will link to this prefix address
+* `markdown_uri_doc_suffix`: If set, all references will link to documents with this suffix.
+
+For example, if your `conf.py` file have the following configuration:
+```python
+markdown_http_base = "https://your-domain.com/docs"
+markdown_uri_doc_suffix = ".html"
+```
+
+Then a reference to `your-doc-name#your-header` will be subsituted with `https://your-domain.com/docs/your-doc-name.html#your-header`. 
 
 ## Credits
 
