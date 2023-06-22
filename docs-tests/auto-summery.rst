@@ -16,6 +16,8 @@ Documentation
 
    my_module
 
+----
+
 Indices and tables
 ==================
 

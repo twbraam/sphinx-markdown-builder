@@ -52,12 +52,9 @@ class MarkdownBuilder(Builder):
                 continue
             target_name = os.path.join(self.outdir, doc_name + self.out_suffix)
             target_mtime = get_mod_time_if_exists(target_name)
-            try:
-                src_mtime = get_mod_time_if_exists(self.env.doc2path(doc_name))
-                if src_mtime > target_mtime:
-                    yield doc_name
-            except EnvironmentError:
-                pass
+            src_mtime = get_mod_time_if_exists(self.env.doc2path(doc_name))
+            if src_mtime > target_mtime:
+                yield doc_name
 
     def get_target_uri(self, docname: str, typ: str = None):
         """

@@ -109,9 +109,6 @@ class CommaSeparatedContext(SubContext):
         return self.body[-1]
 
     def make(self):
-        if len(self.body) == 0:
-            return ""
-
         return self.sep.join(["".join(item) for item in self.body])
 
 

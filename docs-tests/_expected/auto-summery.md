@@ -11,8 +11,10 @@ contain the root `toctree` directive. -->
 
 ## Documentation
 
-| [`my_module`](library/my_module.md#module-my_module)   |    |
-|--------------------------------------------------------|----|
+| [`my_module`](library/my_module.md#module-my_module)   | Example module   |
+|--------------------------------------------------------|------------------|
+
+---
 <a id="indices-and-tables"></a>
 
 # Indices and tables
