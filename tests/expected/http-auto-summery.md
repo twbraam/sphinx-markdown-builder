@@ -11,14 +11,16 @@ contain the root `toctree` directive. -->
 
 ## Documentation
 
-| [`my_module`](library/my_module.md#module-my_module)   | Example module   |
-|--------------------------------------------------------|------------------|
+| [`my_module`](https://localhost/library/my_module.html#module-my_module)   | Example module   |
+|----------------------------------------------------------------------------|------------------|
+
+Some link to a class [`my_module.module_class.ModuleClass`](https://localhost/library/my_module.module_class.html#my_module.module_class.ModuleClass)
 
 ---
 <a id="indices-and-tables"></a>
 
 # Indices and tables
 
-* [Index](genindex.md)
-* [Module Index](py-modindex.md)
-* [Search Page](search.md)
+* [Index](https://localhost/genindex.html)
+* [Module Index](https://localhost/py-modindex.html)
+* [Search Page](https://localhost/search.html)

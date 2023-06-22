@@ -10,6 +10,7 @@ class SubmoduleClass:
     :param var: Does nothing
     :type var: str
     """
+
     def __init__(self, var: str):
         self.var = var
 

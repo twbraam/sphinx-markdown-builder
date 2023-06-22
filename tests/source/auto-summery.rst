@@ -16,6 +16,9 @@ Documentation
 
    my_module
 
+
+Some link to a class :py:class:`my_module.module_class.ModuleClass`
+
 ----
 
 Indices and tables

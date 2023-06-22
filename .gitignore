@@ -112,5 +112,5 @@ README.rst
 
 .idea
 
-docs-build
-docs-tests/library
+tests/docs-build
+tests/source/library

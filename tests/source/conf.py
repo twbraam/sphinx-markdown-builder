@@ -1,8 +1,11 @@
 """Configuration file for the Sphinx documentation builder."""
-import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath("."))
+mod_path = Path(__file__).parent.parent.absolute()
+if mod_path not in sys.path:
+    sys.path.insert(0, str(mod_path))
+
 
 project = "sphinx_markdown_builder"
 copyright = "Copyright (c) 2006-2023, Liran Funaro."
@@ -15,22 +18,6 @@ extensions = [
     "sphinx.ext.intersphinx",  # Link to other project's documentation (see mapping below)
     "sphinx_markdown_builder",
 ]
-
-
-# Intersphinx manages the connections between books.
-# Normally the references in a book are downloaded from readthedocs.  But you
-# can also provide a local file to look in.  It's easier to fix broken
-# references betweeen books if you can do a local build and use the local
-# reference files.  These helper functions are for both reducing the repetition
-# in the mapping dictionary, and for optionally specifying a local file to look
-# in if it exists.
-#
-# We often use the same directory to build two books (edX vs Open edX).  In
-# those cases, only use ism_location for one book, not both, or we'll be
-# looking for A's references in an index built for B.
-#
-# openedx_rtd_url is for books that are branched and built for specific Open
-# edX releases.  edx_rtd_url is for books that are not.
 
 
 def edx_rtd_url(slug):
