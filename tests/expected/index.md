@@ -75,3 +75,5 @@
             * [`SubmoduleClass.function()`](library/my_module.submodule.my_class.md#my_module.submodule.my_class.SubmoduleClass.function)
       * [`deprecated_function()`](library/my_module.md#my_module.deprecated_function)
 * [Indices and tables](auto-summery.md#indices-and-tables)
+* [Math Example](blocks.md)
+* [Code Example](blocks.md#code-example)

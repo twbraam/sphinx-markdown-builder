@@ -27,5 +27,8 @@ class ModuleClass:
         :type param2: str
         :return: Nothing.
         :rtype: None
+
+        .. seealso::
+           :py:meth:`~my_module.submodule.my_class.SubmoduleClass.function`
         """
         self.submodule_class.function(param1, param2)

@@ -5,3 +5,4 @@
    Section_course_student.rst
    links.rst
    auto-summery.rst
+   blocks.rst

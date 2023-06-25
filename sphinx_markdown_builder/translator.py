@@ -1,5 +1,13 @@
 """
 docutils XML to markdown translator.
+
+See Also
+========
+The Docutils Document Tree: https://docutils.sourceforge.io/docs/ref/doctree.html
+reStructuredText Markup Specification: https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html
+Doctree node classes added by Sphinx: https://www.sphinx-doc.org/en/master/extdev/nodes.html
+reStructuredText Primer: https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
+HTML5 translator (example): https://github.com/sphinx-doc/sphinx/blob/master/sphinx/writers/html5.py
 """
 import os
 import posixpath
@@ -249,23 +257,42 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
         raise exp
 
+    def _start_box(self, title: str):
+        self.ensure_eol(2)
+        self.add(f"#### {title}")
+        self.ensure_eol(1)
+        self._push_context(SubContext())
+
+    def _end_box(self, _node):
+        self._pop_context()
+        self.ensure_eol(2)
+
     ################################################################################
     # visit/depart handlers
     ################################################################################
 
     def visit_warning(self, _node):
         """Sphinx warning directive."""
-        self.add("**WARNING**: ")
+        self._start_box("WARNING")
+
+    depart_warning = _end_box
 
     def visit_note(self, _node):
         """Sphinx note directive."""
-        self.add("**NOTE**: ")
+        self._start_box("NOTE")
+
+    depart_note = _end_box
 
     def visit_seealso(self, _node):
-        self.add("**SEE ALSO**: ")
+        """Sphinx see also directive."""
+        self._start_box("SEE ALSO")
+
+    depart_seealso = _end_box
 
     def visit_attention(self, _node):
-        self.add("**ATTENTION**: ")
+        self._start_box("ATTENTION")
+
+    depart_attention = _end_box
 
     def visit_image(self, node):
         """Image directive."""
@@ -325,13 +352,14 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     depart_definition = _finish_level
 
     def visit_math_block(self, _node):
-        # docutils math block
+        """docutils math block"""
         self._escape_text = False
         self.ensure_eol()
         self.add("$$")
         self.ensure_eol()
 
     def depart_math_block(self, _node):
+        """docutils math block"""
         self._escape_text = True
         self.ensure_eol()
         self.add("$$")
@@ -374,7 +402,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         if "language" in node:
             code_type = node["language"]
         self.ensure_eol()
-        self.add("```" + code_type)
+        self.add(f"```{code_type}")
         self.ensure_eol()
 
     def depart_literal_block(self, _node):
@@ -386,7 +414,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     def visit_doctest_block(self, _node):
         self._escape_text = False
         self.ensure_eol()
-        self.add("```python")
+        self.add("```pycon")
         self.ensure_eol()
 
     depart_doctest_block = depart_literal_block
@@ -620,14 +648,9 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         Type will hold something like 'deprecated'
         """
         node_type = node.attributes["type"].capitalize()
-        self.ensure_eol(1)
-        self.add(f"**{node_type}:** ")
-        self.ensure_eol(1)
-        self._push_context(SubContext())
+        self._start_box(node_type)
 
-    def depart_versionmodified(self, _node):
-        self._pop_context()
-        self.ensure_eol(1)
+    depart_versionmodified = _end_box
 
     ################################################################################
     # tables

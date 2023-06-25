@@ -18,5 +18,5 @@ Example module
 
 Some old function.
 
-**Deprecated:** 
+#### Deprecated
 Deprecated since version 3.1: Use `other()` instead.
