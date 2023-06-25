@@ -7,7 +7,7 @@ Sphinx builder that generates markdown files from reStructuredText.
 ## Install
 
 ```sh
-pip3 install sphinx-markdown-builder==0.5.5
+pip3 install sphinx-markdown-builder==0.6.0
 ```
 
 

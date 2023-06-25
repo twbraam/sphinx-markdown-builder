@@ -3,7 +3,7 @@ docutils XML to markdown sphinx extension.
 """
 from sphinx_markdown_builder.builder import MarkdownBuilder
 
-__version__ = "0.5.5"
+__version__ = "0.6.0"
 __docformat__ = "reStructuredText"
 
 
