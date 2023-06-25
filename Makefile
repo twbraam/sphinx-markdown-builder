@@ -43,4 +43,4 @@ meld:
 release:
 	@rm -rf dist/*
 	python3 -m build || exit
-	python3 -m twine upload --repository sphinx_markdown_builder dist/*
+	python3 -m twine upload --repository sphinx-markdown-builder dist/*

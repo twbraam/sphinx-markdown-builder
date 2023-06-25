@@ -4,10 +4,10 @@
 
 Sphinx builder that generates markdown files from reStructuredText.
 
-## Installation
+## Install
 
 ```sh
-pip3 install git+https://github.com/liran-funaro/sphinx-markdown-builder@main
+pip3 install sphinx-markdown-builder==0.5.5
 ```
 
 

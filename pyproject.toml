@@ -49,16 +49,15 @@ push = false
     "version = \"{version}\"",
 ]
 "README.md" = [
-    "objsize=={version}",
-    "Copyright (c) 2023-YYYY, Liran Funaro.",
+    "sphinx-markdown-builder=={version}",
 ]
 "LICENSE" = [
     "Copyright (c) 2023-YYYY, Liran Funaro.",
 ]
-"shpinx_markdown_builder/__init__.py" = [
+"sphinx_markdown_builder/__init__.py" = [
     "^__version__ = \"{version}\"$",
 ]
-"docs/conf.py" = [
+"tests/source/conf.py" = [
     "^version = \"{version}\"$",
     "Copyright (c) 2023-YYYY, Liran Funaro.",
 ]

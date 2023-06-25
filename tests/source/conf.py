@@ -8,7 +8,7 @@ if mod_path not in sys.path:
 
 
 project = "sphinx_markdown_builder"
-copyright = "Copyright (c) 2006-2023, Liran Funaro."
+copyright = "Copyright (c) 2023-2023, Liran Funaro."
 author = "Liran Funaro"
 version = "0.5.5"
 
