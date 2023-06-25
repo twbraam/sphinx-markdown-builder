@@ -1,3 +1,7 @@
 
-.. image:: Git-Icon-Black.png
-   :target: https://github.com/codejamninja/sphinx-markdown-builder
+======================
+Test Image With Target
+======================
+
+.. image:: /static/markdown.png
+   :target: https://github.com/liran-funaro/sphinx-markdown-builder

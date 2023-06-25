@@ -3,98 +3,77 @@ docutils XML to markdown translator.
 
 See Also
 ========
-The Docutils Document Tree: https://docutils.sourceforge.io/docs/ref/doctree.html
-reStructuredText Markup Specification: https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html
-Doctree node classes added by Sphinx: https://www.sphinx-doc.org/en/master/extdev/nodes.html
-reStructuredText Primer: https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
-HTML5 translator (example): https://github.com/sphinx-doc/sphinx/blob/master/sphinx/writers/html5.py
+The Docutils Document Tree:
+https://docutils.sourceforge.io/docs/ref/doctree.html
+
+reStructuredText Markup Specification:
+https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html
+
+Doctree node classes added by Sphinx:
+https://www.sphinx-doc.org/en/master/extdev/nodes.html
+
+reStructuredText Primer:
+https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
+
+HTML5 translator (example):
+https://github.com/sphinx-doc/sphinx/blob/master/sphinx/writers/html5.py
+
+Base HTML5 translator (example):
+https://github.com/docutils/docutils/blob/master/docutils/docutils/writers/html5_polyglot/__init__.py
 """
-import os
 import posixpath
 import re
 from textwrap import dedent
-from typing import List, Dict, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Union
 
 from docutils import languages, nodes
 from sphinx.util.docutils import SphinxTranslator
 
 from sphinx_markdown_builder.contexts import (
-    WrappedContext,
+    CommaSeparatedContext,
+    DocInfoContext,
+    GenericDocInfoContext,
     IndentContext,
+    ItalicContext,
+    PushContext,
+    StrongContext,
     SubContext,
+    SubscriptContext,
     TableContext,
     UniqueString,
-    CommaSeparatedContext,
+    WrappedContext,
 )
+from sphinx_markdown_builder.escape import escape_chars
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from sphinx_markdown_builder import MarkdownBuilder
 
-# Characters that should be escaped in Markdown:
-# ----------------------------------------------
-# Emphasis chars: * and _
-#   Emphasis char prefix/postfix should have a non-space char to its right/left.
-#   _ prefix/postfix must have a space char to its left/right (or beginning/end of the text).
-#   We cannot make the destination between prefix/postfix in regular expression, so we will enforce both for all.
-# Quote/Title: > and #
-#   Should only precede by space chars in the line.
-# Block char: `
-#   One ` only requires not to have double line break in between
-#   Double `` seems to be ignored
-#   Three ``` must be at the beginning of the line
-# Title: ----
-#   A line that only have - or =
-#   No spaces between them
-# Horizontal line: ----
-#   A line that only have 3 consecutive -, _, or * or more.
-#   Precedes an empty line or beginng of text.
-# Links: [text](link)
-# Images: ![alt](link)
-# Lists: +, -, *, 1.
-# Tables: |
-# Anything starting with 4 spaces is considered a block.
-#   Should add force spaces (\ ) to avoid it.
-# Escape char: \
-#   Should be followed by:
-#   Character Name
-#   \         backslash
-#   `         backtick (see also escaping backticks in code)
-#   *         asterisk
-#   _         underscore
-#   { }       curly braces
-#   [ ]       brackets
-#   < >       angle brackets
-#   ( )       parentheses
-#   #         pound sign
-#   +         plus sign
-#   -         minus sign (hyphen)
-#   .         dot
-#   !         exclamation mark
-#   |         pipe (see also escaping pipe in tables)
-ESCAPE_RE = re.compile(r"([\\*`]|(?:^|(?<=\s|_))_)", re.M)
-
-DOC_SECTION_ORDER = "head", "body", "foot"
-
 VISIT_DEPART_PATTERN = re.compile("(visit|depart)_(.+)")
-
-
-def escape_chars(txt: str):
-    # Escape (some) characters with special meaning for Markdown
-    return ESCAPE_RE.sub(r"\\\1", txt)
-
-
 SKIP = UniqueString("skip")
 
-PREDEFINED_ELEMENTS = dict(  # pylint: disable=use-dict-literal
+PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint: disable=use-dict-literal
     # Doctree elements for which Markdown element is <prefix><content><suffix>
-    emphasis=(WrappedContext, "*"),  # _ is more restrictive
-    strong=(WrappedContext, "**"),  # _ is more restrictive
-    subscript=(WrappedContext, "<sub>", "</sub>"),
-    superscript=(WrappedContext, "<sup>", "</sup>"),
-    desc_annotation=(WrappedContext, "*"),  # _ is more restrictive
-    field_name=(WrappedContext, "**"),  # e.g 'returns', 'parameters'
-    literal_strong=(WrappedContext, "**"),
-    literal_emphasis=(WrappedContext, "*"),
+    emphasis=ItalicContext,
+    strong=StrongContext,
+    subscript=SubscriptContext,
+    superscript=SubscriptContext,
+    desc_annotation=ItalicContext,
+    literal_strong=StrongContext,
+    literal_emphasis=ItalicContext,
+    field_name=StrongContext,  # e.g 'returns', 'parameters'
+    # Doc info elements
+    docinfo=GenericDocInfoContext,
+    address=DocInfoContext,
+    author=DocInfoContext,
+    authors=None,  # not used: visit_author is called anyway for each author.
+    contact=DocInfoContext,
+    copyright=DocInfoContext,
+    date=DocInfoContext,
+    organization=DocInfoContext,
+    revision=DocInfoContext,
+    status=DocInfoContext,
+    version=DocInfoContext,
+    docinfo_item=GenericDocInfoContext,
     # Doctree elements to skip subtree
     autosummary_toc=SKIP,
     nbplot_epilogue=SKIP,
@@ -135,12 +114,14 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     def __init__(self, document: nodes.document, builder: "MarkdownBuilder"):
         super().__init__(document, builder)
         self.builder: "MarkdownBuilder" = builder
+        # noinspection PyUnresolvedReferences
         self.language = languages.get_language(self.settings.language_code, document.reporter)
         # Warn only once per writer about unsupported elements
         self._warned = set()
-        # Lookup table to get section list from name (default is ordered dict)
+
         # FIFO Sub context allow us to handle unique cases when post-processing is required.
-        self._sections: Dict[str, List[SubContext]] = dict.fromkeys(DOC_SECTION_ORDER, None)
+        self._ctx_queue: List[SubContext] = []
+        self._doc_info: SubContext = SubContext()
 
         # Current section heading level during writing
         self.section_level = 0
@@ -161,8 +142,8 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
     def reset(self):
         """Initialize object for fresh read."""
-        for k in DOC_SECTION_ORDER:
-            self._sections[k] = [SubContext()]
+        self._ctx_queue = [SubContext()]
+        self._doc_info = IndentContext("% ", target="head")
 
         self.section_level = 0
         self._in_docinfo = False
@@ -170,18 +151,22 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         self.list_context = []
         self.desc_context = []
 
-    def ctx(self, section="body") -> SubContext:
-        return self._sections[section][-1]
+    @property
+    def ctx(self) -> SubContext:
+        return self._ctx_queue[-1]
 
     def astext(self):
         """Return the final formatted document as a string."""
-        for section in self._sections:
-            self._pop_context(count=2**31, section=section)
+        self._pop_context(count=2**31)
+        assert len(self._ctx_queue) == 1
 
-        parts = (self.ctx(section).make().strip() for section in DOC_SECTION_ORDER)
-        return "\n\n".join(parts).strip() + "\n"
+        head = self._doc_info.make().strip()
+        body = self._ctx_queue[0].make().strip()
+        if head:
+            return f"{head}\n\n{body}\n"
+        return f"{body}\n"
 
-    def add(self, value: str, section="body"):
+    def add(self, value: str):
         """
         Add `value` to `section`.
 
@@ -189,30 +174,45 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         ----------
         value : str
             String to add to output document
-        section : {'body', 'head', 'foot'}, optional
-            Section of document that generated text should be appended to.
         """
-        self.ctx(section).add(value)
+        self.ctx.add(value)
 
-    def ensure_eol(self, count=1, section="body"):
+    def ensure_eol(self, count=1):
         """Ensure the last line in current base is terminated by X new lines."""
-        self.ctx(section).ensure_eol(count)
+        self.ctx.ensure_eol(count)
 
-    def _push_context(self, ctx: SubContext, section="body"):
-        self._sections[section].append(ctx)
+    def _push_context(self, ctx: SubContext):
+        self._ctx_queue.append(ctx)
 
-    def _pop_context(self, _node=None, count=1, section="body"):
+    def _pop_context(self, _node=None, count=1):
         for _ in range(count):
-            if len(self._sections[section]) <= 1:
+            if len(self._ctx_queue) <= 1:
                 break
-            content = self._sections[section].pop().make()
-            self.add(content)
+
+            last_ctx = self._ctx_queue.pop()
+            content = last_ctx.make()
+
+            if last_ctx.target == "body":
+                ctx = self.ctx
+            else:
+                ctx = self._doc_info
+
+            ctx.ensure_eol(last_ctx.prefix_eol)
+            ctx.add(content)
+            ctx.ensure_eol(last_ctx.suffix_eol)
 
     def _start_level(self, prefix: str):
         """Create a new IndentLevel with `prefix` and `first_prefix`"""
         self._push_context(IndentContext(prefix))
 
     _finish_level = _pop_context
+
+    def _start_box(self, title: str):
+        self.ensure_eol(2)
+        self.add(f"#### {title}")
+        self._push_context(SubContext(prefix_eol=1, suffix_eol=2))
+
+    _end_box = _pop_context
 
     def _pass(self, _node=None):
         pass
@@ -245,10 +245,9 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
                 return self._pass
             if action is SKIP:
                 return self._skip
-            if isinstance(action, (list, tuple)) and isinstance(action[0], type) and issubclass(action[0], SubContext):
+            if isinstance(action, PushContext):
                 if state == "visit":
-                    sub_context, *args = action
-                    return lambda _node: self._push_context(sub_context(*args))
+                    return lambda node: self._push_context(action.create(node, element))
                 return self._pop_context
 
         # If one of the handlers is defined, automatically add the other
@@ -256,16 +255,6 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
             return self._pass
 
         raise exp
-
-    def _start_box(self, title: str):
-        self.ensure_eol(2)
-        self.add(f"#### {title}")
-        self.ensure_eol(1)
-        self._push_context(SubContext())
-
-    def _end_box(self, _node):
-        self._pop_context()
-        self.ensure_eol(2)
 
     ################################################################################
     # visit/depart handlers
@@ -296,15 +285,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
     def visit_image(self, node):
         """Image directive."""
-        uri = node.attributes["uri"]
-        doc_folder = os.path.dirname(self.builder.current_doc_name)
-        if uri.startswith(doc_folder):
-            # drop docname prefix
-            doc_folder_len = len(doc_folder)
-            uri = uri[doc_folder_len:]
-            if uri.startswith("/"):
-                uri = "." + uri
-
+        uri = node["uri"]
         alt = node.attributes.get("alt", "image")
         # We don't need to add EOL before/after the image.
         # It will be handled by the visit/depart handlers of the paragraph.
@@ -318,9 +299,8 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         self.add(text)
 
     def visit_comment(self, _node):
-        self.ensure_eol()
         self._escape_text = False
-        self._push_context(WrappedContext("<!-- ", " -->"))
+        self._push_context(WrappedContext("<!-- ", " -->", prefix_eol=1))
 
     def depart_comment(self, _node):
         self._pop_context()
@@ -332,18 +312,6 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     depart_paragraph = visit_paragraph
     visit_compact_paragraph = visit_paragraph
     depart_compact_paragraph = depart_paragraph
-
-    def visit_docinfo(self, _node):
-        self._in_docinfo = True
-
-    def depart_docinfo(self, _node):
-        self._in_docinfo = False
-
-    def _process_docinfo_item(self, node):
-        """Called explicitly from methods in this class."""
-        self.ensure_eol(1, section="head")
-        self.add(f"% {node.astext()}\n", section="head")
-        raise nodes.SkipNode
 
     def visit_definition(self, _node):
         self.ensure_eol(2)
@@ -428,18 +396,6 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     def visit_problematic(self, node):
         self.ensure_eol(2)
         self.add(f"```\n{node.astext()}\n```")
-        self.ensure_eol(2)
-        raise nodes.SkipNode
-
-    def visit_system_message(self, node):
-        if node["level"] < self.document.reporter.report_level:
-            # Level is too low to display
-            raise nodes.SkipNode
-        line = node["line"] if node.hasattr("line") else ""
-        line = f", line {line}"
-        source = node["source"]
-        self.ensure_eol(2)
-        self.add(f"```System Message: {source}:{line}\n\n{node.astext()}\n```")
         self.ensure_eol(2)
         raise nodes.SkipNode
 
@@ -546,13 +502,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         self.ensure_eol()
 
     def unknown_visit(self, node):
-        """Warn once per instance for unsupported nodes.
-        Intercept docinfo items if in docinfo block.
-        """
-        if self._in_docinfo:
-            self._process_docinfo_item(node)
-            return
-        # We really don't know this node type, warn once per node type
+        """Warn once per instance for unsupported nodes."""
         node_type = node.__class__.__name__
         if node_type not in self._warned:
             self.document.reporter.warning("The " + node_type + " element not yet supported in Markdown.")
@@ -609,17 +559,18 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         """the main signature of class/method"""
         self.ensure_eol()
 
-    def sep_ctx(self, section="body") -> CommaSeparatedContext:
-        ctx = self.ctx(section)
+    @property
+    def sep_ctx(self) -> CommaSeparatedContext:
+        ctx = self.ctx
         assert isinstance(ctx, CommaSeparatedContext)
         return ctx
 
     def visit_desc_parameter(self, _node):
         """single method/class ctr param"""
-        self.sep_ctx().enter_parameter()
+        self.sep_ctx.enter_parameter()
 
     def depart_desc_parameter(self, _node):
-        self.sep_ctx().exit_parameter()
+        self.sep_ctx.exit_parameter()
 
     def visit_field_list(self, _node):
         self._start_list("*")
@@ -634,12 +585,9 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         self._end_list_item()
 
     def visit_field_body(self, _node):
-        self.ensure_eol(1)
-        self._push_context(SubContext())
+        self._push_context(SubContext(prefix_eol=1, suffix_eol=1))
 
-    def depart_field_body(self, _node):
-        self._pop_context()
-        self.ensure_eol(1)
+    depart_field_body = _pop_context
 
     def visit_versionmodified(self, node):
         """
@@ -668,39 +616,40 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     #           paragraph (optional)
     ###############################################################################
 
-    def table_ctx(self, section="body") -> TableContext:
-        ctx = self.ctx(section)
+    @property
+    def table_ctx(self) -> TableContext:
+        ctx = self.ctx
         assert isinstance(ctx, TableContext)
         return ctx
 
     def visit_table(self, _node):
-        self._push_context(TableContext())
+        self._push_context(TableContext(prefix_eol=1, suffix_eol=1))
 
     depart_table = _pop_context
 
     def visit_thead(self, _node):
-        self.table_ctx().enter_head()
+        self.table_ctx.enter_head()
 
     def depart_thead(self, _node):
-        self.table_ctx().exit_head()
+        self.table_ctx.exit_head()
 
     def visit_tbody(self, _node):
-        self.table_ctx().enter_body()
+        self.table_ctx.enter_body()
 
     def depart_tbody(self, _node):
-        self.table_ctx().exit_body()
+        self.table_ctx.exit_body()
 
     def visit_row(self, _node):
-        self.table_ctx().enter_row()
+        self.table_ctx.enter_row()
 
     def depart_row(self, _node):
-        self.table_ctx().exit_row()
+        self.table_ctx.exit_row()
 
     def visit_entry(self, _node):
-        self.table_ctx().enter_entry()
+        self.table_ctx.enter_entry()
 
     def depart_entry(self, _node):
-        self.table_ctx().exit_entry()
+        self.table_ctx.exit_entry()
 
     ################################################################################
     # lists
@@ -727,8 +676,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
             marker = f"{marker}. "
             self.list_context[-1] += 1
         # Make sure the list item prefix starts at a new line
-        self.ensure_eol()
-        self._push_context(IndentContext(marker, only_first=True))
+        self._push_context(IndentContext(marker, only_first=True, prefix_eol=1))
 
     def _end_list_item(self):
         self._pop_context()

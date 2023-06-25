@@ -2,8 +2,10 @@
 Context handlers.
 """
 import re
+import sys
 import textwrap
-from typing import List, Iterator, Optional
+import typing
+from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type, TypeVar
 
 from tabulate import tabulate
 
@@ -12,6 +14,12 @@ class UniqueString(str):
     pass
 
 
+if sys.version_info >= (3, 8):
+    Target = typing.Literal["body", "head"]
+else:
+    Target = str
+
+DEFAULT_TARGET = "body"
 CONTENT_START = UniqueString("content start")
 EOL = "\n"
 SPACE_CHARS = re.compile(r"\s+")
@@ -23,7 +31,10 @@ def is_content_start(value: str):
 
 
 class SubContext:
-    def __init__(self):
+    def __init__(self, target: Target = DEFAULT_TARGET, prefix_eol=0, suffix_eol=0):
+        self.target = target
+        self.prefix_eol = prefix_eol
+        self.suffix_eol = suffix_eol
         self.body: List[str] = []
         self.ensure_eol_count = 0
 
@@ -70,8 +81,16 @@ class SubContext:
 
 
 class WrappedContext(SubContext):
-    def __init__(self, prefix, suffix: Optional[str] = None, wrap_empty=False):
-        super().__init__()
+    def __init__(
+        self,
+        prefix,
+        suffix: Optional[str] = None,
+        wrap_empty=False,
+        target: Target = DEFAULT_TARGET,
+        prefix_eol=0,
+        suffix_eol=0,
+    ):  # pylint: disable=too-many-arguments
+        super().__init__(target, prefix_eol, suffix_eol)
         self.prefix = prefix
         self.suffix = suffix if suffix is not None else prefix
         self.wrap_empty = wrap_empty
@@ -92,8 +111,8 @@ class WrappedContext(SubContext):
 
 
 class CommaSeparatedContext(SubContext):
-    def __init__(self, sep: str = ", "):
-        super().__init__()
+    def __init__(self, sep: str = ", ", target: Target = DEFAULT_TARGET, prefix_eol=0, suffix_eol=0):
+        super().__init__(target, prefix_eol, suffix_eol)
         self.sep = sep
         self.body: List[List[str]] = []
 
@@ -116,8 +135,8 @@ class CommaSeparatedContext(SubContext):
 
 
 class TableContext(SubContext):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, target: Target = DEFAULT_TARGET, prefix_eol=0, suffix_eol=0):
+        super().__init__(target, prefix_eol, suffix_eol)
         self.body: List[List[List[str]]] = []
         self.headers: List[List[List[str]]] = []
         self._active_output: Optional[List[List[List[str]]]] = None
@@ -182,8 +201,8 @@ class TableContext(SubContext):
 
 
 class IndentContext(SubContext):
-    def __init__(self, prefix, only_first=False):
-        super().__init__()
+    def __init__(self, prefix, only_first=False, target: Target = DEFAULT_TARGET, prefix_eol=0, suffix_eol=0):
+        super().__init__(target, prefix_eol, suffix_eol)
         if only_first:
             self.prefix = " " * len(prefix)
             self.first_prefix = prefix
@@ -196,3 +215,42 @@ class IndentContext(SubContext):
         if self.first_prefix is None:
             return content
         return content.replace(self.prefix, self.first_prefix, 1)
+
+
+_ContextT = TypeVar("_ContextT", bound=SubContext)
+
+Translator = Callable[[Any, Any], Dict[str, Any]]
+DEFAULT_TRANSLATOR: Translator = lambda _node, _elem: {}
+
+
+class PushContext(Generic[_ContextT]):  # pylint: disable=too-few-public-methods
+    def __init__(
+        self,
+        ctx: Type[_ContextT],
+        *args,
+        translator: Translator = DEFAULT_TRANSLATOR,
+        **kwargs,
+    ):
+        self.ctx = ctx
+        self.translator = translator
+        self.args = args
+        self.kwargs = kwargs
+
+    def create(self, node, element_key) -> _ContextT:
+        kwargs = dict(self.kwargs)
+        kwargs.update(self.translator(node, element_key))
+        return self.ctx(*self.args, **kwargs)
+
+
+ItalicContext = PushContext(WrappedContext, "*")  # _ is more restrictive
+StrongContext = PushContext(WrappedContext, "**")  # _ is more restrictive
+SubscriptContext = PushContext(WrappedContext, "<sub>", "</sub>")
+GenericDocInfoContext = PushContext(SubContext, target="head", prefix_eol=1, suffix_eol=1)
+DocInfoContext = PushContext(
+    IndentContext,
+    target="head",
+    only_first=True,
+    prefix_eol=1,
+    suffix_eol=1,
+    translator=lambda _node, elem: {"prefix": f"{elem}: "},
+)

@@ -1,1 +1,5 @@
-[![image](Git-Icon-Black.png)](https://github.com/codejamninja/sphinx-markdown-builder)
+<a id="test-image-with-target"></a>
+
+# Test Image With Target
+
+[![image](static/markdown.png)](https://github.com/liran-funaro/sphinx-markdown-builder)

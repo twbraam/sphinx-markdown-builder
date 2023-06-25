@@ -1,3 +1,6 @@
+==============
+Main Test File
+==============
 
 .. toctree::
 
@@ -6,3 +9,4 @@
    links.rst
    auto-summery.rst
    blocks.rst
+   image-target.rst

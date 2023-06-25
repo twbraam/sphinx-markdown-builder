@@ -124,7 +124,7 @@ text in the ordered list.
 
 #. Select **Save Changes**.
 
-.. image:: /Images/Lists_UL_inside_OL.png
+.. image:: /static/markdown.png
  :width: 500
  :alt: An unordered (bulleted) list inside an ordered (numbered) list.
 
@@ -172,7 +172,7 @@ be flush with the text in the unordered list.
 
 * Select **Save Changes**.
 
-.. image:: /Images/Lists_UL_inside_UL.png
+.. image:: /static/markdown.png
  :width: 500
  :alt: An ordered (numbered) list inside an unordered (bulleted) list.
 
@@ -517,7 +517,7 @@ Image References
 
 Image references look like this.
 
-.. image:: /Images/Course_Outline_LMS.png
+.. image:: /static/markdown.png
    :width: 100
    :alt: A screen capture showing the elements of the course outline in the LMS.
 

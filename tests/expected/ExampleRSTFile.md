@@ -117,7 +117,7 @@ text in the ordered list.
      the beginning of a list of other keys.
 2. Select **Save Changes**.
 
-![An unordered (bulleted) list inside an ordered (numbered) list.](Images/Lists_UL_inside_OL.png)
+![An unordered (bulleted) list inside an ordered (numbered) list.](static/markdown.png)
 <a id="ordered-list-inside-unordered-list"></a>
 
 #### Ordered List inside Unordered List
@@ -157,7 +157,7 @@ be flush with the text in the unordered list.
      beginning of a list of other keys.
 * Select **Save Changes**.
 
-![An ordered (numbered) list inside an unordered (bulleted) list.](Images/Lists_UL_inside_UL.png)
+![An ordered (numbered) list inside an unordered (bulleted) list.](static/markdown.png)
 <a id="ordered-list-inside-ordered-list"></a>
 
 #### Ordered List inside Ordered List
@@ -458,7 +458,7 @@ repository.
 
 Image references look like this.
 
-![A screen capture showing the elements of the course outline in the LMS.](Images/Course_Outline_LMS.png)
+![A screen capture showing the elements of the course outline in the LMS.](static/markdown.png)
 
 Image links can include optional specifications such as height, width, or
 scale. Alternative text for screen readers is required for each image. Provide

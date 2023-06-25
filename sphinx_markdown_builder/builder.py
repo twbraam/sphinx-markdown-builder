@@ -2,6 +2,7 @@
 docutils XML to markdown translator.
 """
 import os
+from contextlib import contextmanager
 from typing import Set
 
 from docutils import nodes
@@ -19,12 +20,17 @@ from sphinx_markdown_builder.writer import MarkdownWriter
 logger = logging.getLogger(__name__)
 
 
-def get_mod_time_if_exists(file_path):
+@contextmanager
+def io_handler(file_path: str):
     try:
+        yield
+    except (IOError, OSError) as err:
+        logger.warning(__("error accessing file %s: %s"), file_path, err)
+
+
+def get_mod_time_if_exists(file_path):
+    with io_handler(file_path):
         return os.path.getmtime(file_path)
-    except OSError as err:
-        logger.warning(__("error reading file %s: %s"), file_path, err)
-        return 0
 
 
 class MarkdownBuilder(Builder):
@@ -52,9 +58,10 @@ class MarkdownBuilder(Builder):
                 yield doc_name
                 continue
             target_name = os.path.join(self.outdir, doc_name + self.out_suffix)
+            source_name = self.env.doc2path(doc_name)
             target_mtime = get_mod_time_if_exists(target_name)
-            src_mtime = get_mod_time_if_exists(self.env.doc2path(doc_name))
-            if src_mtime > target_mtime:
+            source_mtime = get_mod_time_if_exists(source_name)
+            if source_mtime is None or target_mtime is None or source_mtime > target_mtime:
                 yield doc_name
 
     def get_target_uri(self, docname: str, typ: str = None):
@@ -76,8 +83,6 @@ class MarkdownBuilder(Builder):
         out_filename = os.path.join(self.outdir, f"{os_path(docname)}{self.out_suffix}")
         ensuredir(os.path.dirname(out_filename))
 
-        try:
+        with io_handler(out_filename):
             with open(out_filename, "w", encoding="utf-8") as file:
                 file.write(self.writer.output)
-        except (IOError, OSError) as err:
-            logger.warning(__("error writing file %s: %s"), out_filename, err)

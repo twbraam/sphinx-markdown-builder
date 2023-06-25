@@ -1,3 +1,7 @@
+<a id="main-test-file"></a>
+
+# Main Test File
+
 * [Example .rst File](ExampleRSTFile.md)
 
   * [Heading Levels](ExampleRSTFile.md#heading-levels)
@@ -77,3 +81,4 @@
 * [Indices and tables](auto-summery.md#indices-and-tables)
 * [Math Example](blocks.md)
 * [Code Example](blocks.md#code-example)
+* [Test Image With Target](image-target.md)

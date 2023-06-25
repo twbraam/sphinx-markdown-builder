@@ -53,8 +53,6 @@ intersphinx_mapping = {
 
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
 autoclass_content = "both"  # Add __init__ doc (i.e., params) to class summaries
-html_show_sourcelink = True  # Remove 'view source code' from top of page (for html, not python)
-html_copy_source = True
 autodoc_inherit_docstrings = True  # If no docstring, inherit from base class
 set_type_checking_flag = True  # Enable 'expensive' imports for sphinx_autodoc_typehints
 autodoc_typehints = "description"  # Sphinx-native method. Not as good as sphinx_autodoc_typehints
@@ -62,7 +60,7 @@ add_module_names = False  # Remove namespaces from class/method signatures
 autodoc_member_order = "bysource"
 
 templates_path = ["_templates"]
-exclude_patterns = ["_expected"]
+exclude_patterns = ["expected"]
 
 language = "en"
 
