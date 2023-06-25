@@ -23,12 +23,12 @@ def run_sphinx(build_path, *flags):
 
 
 @pytest.mark.parametrize(["flags", "build_path"], OPTIONS, ids=TEST_NAMES)
-def test_builder_direct(flags: Iterable[str], build_path: str):
+def test_builder_make_all(flags: Iterable[str], build_path: str):
     run_sphinx(build_path, "-a", *flags)
 
 
 @pytest.mark.parametrize(["flags", "build_path"], OPTIONS, ids=TEST_NAMES)
-def test_builder_updated(flags: Iterable[str], build_path: str):
+def test_builder_make_updated(flags: Iterable[str], build_path: str):
     for file in os.listdir(SOURCE_PATH):
         Path(SOURCE_PATH, file).touch()
         break
@@ -36,7 +36,7 @@ def test_builder_updated(flags: Iterable[str], build_path: str):
 
 
 @pytest.mark.parametrize(["flags", "build_path"], OPTIONS, ids=TEST_NAMES)
-def test_builder_missing(flags: Iterable[str], build_path: str):
+def test_builder_make_missing(flags: Iterable[str], build_path: str):
     if os.path.exists(build_path):
         shutil.rmtree(build_path)
     run_sphinx(build_path, *flags)

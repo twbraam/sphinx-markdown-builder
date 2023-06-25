@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 def get_mod_time_if_exists(file_path):
     try:
         return os.path.getmtime(file_path)
-    except OSError:
+    except OSError as err:
+        logger.warning(__("error reading file %s: %s"), file_path, err)
         return 0
 
 

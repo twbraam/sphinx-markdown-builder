@@ -70,16 +70,19 @@ class SubContext:
 
 
 class WrappedContext(SubContext):
-    def __init__(self, prefix, suffix: Optional[str] = None):
+    def __init__(self, prefix, suffix: Optional[str] = None, wrap_empty=False):
         super().__init__()
         self.prefix = prefix
         self.suffix = suffix if suffix is not None else prefix
+        self.wrap_empty = wrap_empty
 
     def make(self):
         content = super().make()
         match = WRAP_REGEXP.fullmatch(content)
         if match is None:
             # The expression has no match only when there is no non-space character.
+            if self.wrap_empty:
+                return f"{self.prefix}{content}{self.suffix}"
             return content
 
         # We need to make sure the emphasis mark is near a non-space char,
@@ -171,17 +174,10 @@ class TableContext(SubContext):
         return ["".join(entries).replace("\n", "<br/>") for entries in row]
 
     def make(self):
-        if len(self.headers) == 0 and len(self.body) == 0:
-            return ""
-
-        if len(self.headers) == 0:
-            self.headers = [self.body[0]]
-            self.body = self.body[1:]
-
-        assert len(self.headers) == 1
-        headers = self.make_row(self.headers[0])
-
-        body = list(map(self.make_row, self.body))
+        content = [*self.headers, *self.body]
+        assert len(content) > 0, "Empty table"
+        headers = self.make_row(content[0])
+        body = list(map(self.make_row, content[1:]))
         return tabulate(body, headers=headers, tablefmt="github")
 
 

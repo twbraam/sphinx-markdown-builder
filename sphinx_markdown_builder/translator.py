@@ -5,9 +5,10 @@ import os
 import posixpath
 import re
 from textwrap import dedent
-from typing import List, Dict, Union
+from typing import List, Dict, Union, TYPE_CHECKING
 
 from docutils import languages, nodes
+from sphinx.util.docutils import SphinxTranslator
 
 from sphinx_markdown_builder.contexts import (
     WrappedContext,
@@ -17,6 +18,9 @@ from sphinx_markdown_builder.contexts import (
     UniqueString,
     CommaSeparatedContext,
 )
+
+if TYPE_CHECKING:
+    from sphinx_markdown_builder import MarkdownBuilder
 
 # Characters that should be escaped in Markdown:
 # ----------------------------------------------
@@ -109,7 +113,6 @@ PREDEFINED_ELEMENTS = dict(  # pylint: disable=use-dict-literal
     desc_content=None,  # the description of the class/method
     desc_name=None,  # name of the class/method
     title_reference=None,
-    versionmodified=None,  # deprecation and compatibility messages
     autosummary_table=None,  # Sphinx autosummary
     # See https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html.
     # Ignored table elements
@@ -120,15 +123,11 @@ PREDEFINED_ELEMENTS = dict(  # pylint: disable=use-dict-literal
 )
 
 
-class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
-    def __init__(self, document: nodes.document, builder=None):
-        super().__init__(document)
-        self.builder = builder
-        self.settings = settings = document.settings
-        lcode = settings.language_code
-        self.language = languages.get_language(lcode, document.reporter)
-        # Not-None here indicates Markdown should use HTTP for internal and download links.
-        self.markdown_http_base = builder.config.markdown_http_base if builder else None
+class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
+    def __init__(self, document: nodes.document, builder: "MarkdownBuilder"):
+        super().__init__(document, builder)
+        self.builder: "MarkdownBuilder" = builder
+        self.language = languages.get_language(self.settings.language_code, document.reporter)
         # Warn only once per writer about unsupported elements
         self._warned = set()
         # Lookup table to get section list from name (default is ordered dict)
@@ -161,16 +160,15 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         self._in_docinfo = False
         self._escape_text = True
         self.list_context = []
-        self.desc_context: List[str] = []
+        self.desc_context = []
 
     def ctx(self, section="body") -> SubContext:
         return self._sections[section][-1]
 
     def astext(self):
         """Return the final formatted document as a string."""
-        for section, ctx in self._sections.items():
-            while len(ctx) > 1:
-                self._pop_context(section=section)
+        for section in self._sections:
+            self._pop_context(count=2**31, section=section)
 
         parts = (self.ctx(section).make().strip() for section in DOC_SECTION_ORDER)
         return "\n\n".join(parts).strip() + "\n"
@@ -195,9 +193,12 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
     def _push_context(self, ctx: SubContext, section="body"):
         self._sections[section].append(ctx)
 
-    def _pop_context(self, _node=None, section="body"):
-        content = self._sections[section].pop().make()
-        self.add(content)
+    def _pop_context(self, _node=None, count=1, section="body"):
+        for _ in range(count):
+            if len(self._sections[section]) <= 1:
+                break
+            content = self._sections[section].pop().make()
+            self.add(content)
 
     def _start_level(self, prefix: str):
         """Create a new IndentLevel with `prefix` and `first_prefix`"""
@@ -415,7 +416,7 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         raise nodes.SkipNode
 
     def visit_section(self, node):
-        if self.builder.config.markdown_anchor_sections:
+        if self.config.markdown_anchor_sections:
             for anchor in node.get("ids", []):
                 self._add_anchor(anchor)
 
@@ -456,7 +457,7 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
 
     def _adjust_url(self, url: str):
         """Replace `refuri` in reference with HTTP address, if possible"""
-        if not self.markdown_http_base:
+        if not self.config.markdown_http_base:
             return url
 
         # If HTTP page build URL known, make link relative to that.
@@ -467,7 +468,7 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
             this_dir = posixpath.dirname(this_doc)
             if this_dir:
                 url = posixpath.normpath(f"{this_dir}/{url}")
-        return f"{self.markdown_http_base}/{url}"
+        return f"{self.config.markdown_http_base}/{url}"
 
     def _fetch_ref_uri(self, node):
         uri = node.get("refuri", "")
@@ -556,7 +557,7 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
         """the main signature of class/method"""
 
         # Insert anchors if enabled by the config
-        if self.builder.config.markdown_anchor_signatures:
+        if self.config.markdown_anchor_signatures:
             for anchor in node.get("ids", []):
                 self._add_anchor(anchor)
 
@@ -570,12 +571,11 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
             self.add("### ")
 
     def visit_desc_parameterlist(self, _node):
-        self._push_context(WrappedContext("(", ")"))
+        self._push_context(WrappedContext("(", ")", wrap_empty=True))
         self._push_context(CommaSeparatedContext(", "))
 
     def depart_desc_parameterlist(self, _node):
-        self._pop_context()
-        self._pop_context()
+        self._pop_context(count=2)
 
     def depart_desc_signature(self, _node):
         """the main signature of class/method"""
@@ -615,11 +615,19 @@ class MarkdownTranslator(nodes.NodeVisitor):  # pylint: disable=too-many-instanc
 
     def visit_versionmodified(self, node):
         """
-        deprecation and compatibility messages
-        type will hold something like 'deprecated'
+        Node for version change entries.
+        Currently used for “versionadded”, “versionchanged” and “deprecated” directives.
+        Type will hold something like 'deprecated'
         """
         node_type = node.attributes["type"].capitalize()
+        self.ensure_eol(1)
         self.add(f"**{node_type}:** ")
+        self.ensure_eol(1)
+        self._push_context(SubContext())
+
+    def depart_versionmodified(self, _node):
+        self._pop_context()
+        self.ensure_eol(1)
 
     ################################################################################
     # tables
