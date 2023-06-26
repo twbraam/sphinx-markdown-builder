@@ -329,14 +329,6 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         self.add("$$")
         self.ensure_eol(2)
 
-    def visit_displaymath(self, node):
-        """sphinx math blocks become displaymath"""
-        self.ensure_eol()
-        latex = node["latex"]
-        self.add(f"$$\n{latex}\n$$")
-        self.ensure_eol(2)
-        raise nodes.SkipNode
-
     def visit_math(self, node):
         """sphinx math node has 'latex' attribute, docutils does not"""
         if "latex" in node:  # sphinx math node
