@@ -5,6 +5,7 @@ import re
 import sys
 import textwrap
 import typing
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type, TypeVar
 
 from tabulate import tabulate
@@ -24,19 +25,29 @@ CONTENT_START = UniqueString("content start")
 EOL = "\n"
 SPACE_CHARS = re.compile(r"\s+")
 WRAP_REGEXP = re.compile(r"(\s*)(?=\S)([\s\S]+?)(?<=\S)(\s*)", re.M)
+MULTI_LINE_BREAK = re.compile(r"(?<=\n)\n")
 
 
 def is_content_start(value: str):
     return isinstance(value, UniqueString) and value is CONTENT_START
 
 
+def replace_multi_line_break(value: str):
+    return MULTI_LINE_BREAK.sub("<br/>\n", value)
+
+
+@dataclass
+class SubContextParams:
+    prefix_eol: int = 0
+    suffix_eol: int = 0
+    target: Target = DEFAULT_TARGET
+
+
 class SubContext:
-    def __init__(self, target: Target = DEFAULT_TARGET, prefix_eol=0, suffix_eol=0):
-        self.target = target
-        self.prefix_eol = prefix_eol
-        self.suffix_eol = suffix_eol
+    def __init__(self, params=SubContextParams()):
+        self.params: SubContextParams = params
         self.body: List[str] = []
-        self.ensure_eol_count = 0
+        self.ensure_eol_count: int = 0
 
     @property
     def content(self) -> List[str]:
@@ -86,11 +97,9 @@ class WrappedContext(SubContext):
         prefix,
         suffix: Optional[str] = None,
         wrap_empty=False,
-        target: Target = DEFAULT_TARGET,
-        prefix_eol=0,
-        suffix_eol=0,
+        params=SubContextParams(),
     ):  # pylint: disable=too-many-arguments
-        super().__init__(target, prefix_eol, suffix_eol)
+        super().__init__(params)
         self.prefix = prefix
         self.suffix = suffix if suffix is not None else prefix
         self.wrap_empty = wrap_empty
@@ -111,8 +120,8 @@ class WrappedContext(SubContext):
 
 
 class CommaSeparatedContext(SubContext):
-    def __init__(self, sep: str = ", ", target: Target = DEFAULT_TARGET, prefix_eol=0, suffix_eol=0):
-        super().__init__(target, prefix_eol, suffix_eol)
+    def __init__(self, sep: str = ", ", params=SubContextParams()):
+        super().__init__(params)
         self.sep = sep
         self.body: List[List[str]] = []
 
@@ -135,8 +144,8 @@ class CommaSeparatedContext(SubContext):
 
 
 class TableContext(SubContext):
-    def __init__(self, target: Target = DEFAULT_TARGET, prefix_eol=0, suffix_eol=0):
-        super().__init__(target, prefix_eol, suffix_eol)
+    def __init__(self, params=SubContextParams()):
+        super().__init__(params)
         self.body: List[List[List[str]]] = []
         self.headers: List[List[List[str]]] = []
         self._active_output: Optional[List[List[List[str]]]] = None
@@ -201,8 +210,15 @@ class TableContext(SubContext):
 
 
 class IndentContext(SubContext):
-    def __init__(self, prefix, only_first=False, target: Target = DEFAULT_TARGET, prefix_eol=0, suffix_eol=0):
-        super().__init__(target, prefix_eol, suffix_eol)
+    def __init__(
+        self,
+        prefix,
+        only_first=False,
+        support_multi_line_break=False,
+        params=SubContextParams(),
+    ):
+        super().__init__(params)
+        self.support_multi_line_break = support_multi_line_break
         if only_first:
             self.prefix = " " * len(prefix)
             self.first_prefix = prefix
@@ -211,7 +227,10 @@ class IndentContext(SubContext):
             self.first_prefix = None
 
     def make(self):
-        content = textwrap.indent(super().make(), self.prefix)
+        content = super().make()
+        if self.support_multi_line_break:
+            content = replace_multi_line_break(content)
+        content = textwrap.indent(content, self.prefix)
         if self.first_prefix is None:
             return content
         return content.replace(self.prefix, self.first_prefix, 1)
@@ -245,12 +264,10 @@ class PushContext(Generic[_ContextT]):  # pylint: disable=too-few-public-methods
 ItalicContext = PushContext(WrappedContext, "*")  # _ is more restrictive
 StrongContext = PushContext(WrappedContext, "**")  # _ is more restrictive
 SubscriptContext = PushContext(WrappedContext, "<sub>", "</sub>")
-GenericDocInfoContext = PushContext(SubContext, target="head", prefix_eol=1, suffix_eol=1)
+GenericDocInfoContext = PushContext(SubContext, SubContextParams(1, 1, "head"))
 DocInfoContext = PushContext(
     IndentContext,
-    target="head",
     only_first=True,
-    prefix_eol=1,
-    suffix_eol=1,
+    params=SubContextParams(1, 1, "head"),
     translator=lambda _node, elem: {"prefix": f"{elem}: "},
 )

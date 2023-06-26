@@ -38,6 +38,7 @@ from sphinx_markdown_builder.contexts import (
     PushContext,
     StrongContext,
     SubContext,
+    SubContextParams,
     SubscriptContext,
     TableContext,
     UniqueString,
@@ -143,7 +144,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     def reset(self):
         """Initialize object for fresh read."""
         self._ctx_queue = [SubContext()]
-        self._doc_info = IndentContext("% ", target="head")
+        self._doc_info = IndentContext("% ", params=SubContextParams(target="head"))
 
         self.section_level = 0
         self._in_docinfo = False
@@ -192,10 +193,10 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
                 break
 
             last_ctx = self._ctx_queue.pop()
-            ctx = self.ctx if last_ctx.target == "body" else self._doc_info
-            ctx.ensure_eol(last_ctx.prefix_eol)
+            ctx = self.ctx if last_ctx.params.target == "body" else self._doc_info
+            ctx.ensure_eol(last_ctx.params.prefix_eol)
             ctx.add(last_ctx.make())
-            ctx.ensure_eol(last_ctx.suffix_eol)
+            ctx.ensure_eol(last_ctx.params.suffix_eol)
 
     def _start_level(self, prefix: str):
         """Create a new IndentLevel with `prefix` and `first_prefix`"""
@@ -206,7 +207,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     def _start_box(self, title: str):
         self.ensure_eol(2)
         self.add(f"#### {title}")
-        self._push_context(SubContext(prefix_eol=1, suffix_eol=2))
+        self._push_context(SubContext(SubContextParams(1, 2)))
 
     _end_box = _pop_context
 
@@ -296,7 +297,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
     def visit_comment(self, _node):
         self._escape_text = False
-        self._push_context(WrappedContext("<!-- ", " -->", prefix_eol=1))
+        self._push_context(WrappedContext("<!-- ", " -->", params=SubContextParams(1)))
 
     def depart_comment(self, _node):
         self._pop_context()
@@ -309,11 +310,22 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     visit_compact_paragraph = visit_paragraph
     depart_compact_paragraph = depart_paragraph
 
-    def visit_definition(self, _node):
-        self.ensure_eol(2)
-        self._start_level("    ")
+    ################################################################################
+    # Definition
+    ################################################################################
+    # definition_list
+    #   definition_list_item
+    #     term
+    #     definition
+    #       paragraph
+    ################################################################################
 
-    depart_definition = _finish_level
+    def visit_definition(self, _node):
+        self._push_context(
+            IndentContext(": ", only_first=True, support_multi_line_break=True, params=SubContextParams(1, 2))
+        )
+
+    depart_definition = _pop_context
 
     def visit_math_block(self, _node):
         """docutils math block"""
@@ -329,18 +341,13 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         self.add("$$")
         self.ensure_eol(2)
 
-    def visit_math(self, node):
-        """sphinx math node has 'latex' attribute, docutils does not"""
-        if "latex" in node:  # sphinx math node
-            latex = node["latex"]
-            self.add(f"${latex}$")
-            raise nodes.SkipNode
-        # docutils math node
+    def visit_math(self, _node):
+        """docutils math node"""
         self._escape_text = False
         self.add("$")
 
     def depart_math(self, _node):
-        # sphinx node skipped in visit, only docutils gets here
+        """docutils math node"""
         self._escape_text = True
         self.add("$")
 
@@ -573,7 +580,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         self._end_list_item()
 
     def visit_field_body(self, _node):
-        self._push_context(SubContext(prefix_eol=1, suffix_eol=1))
+        self._push_context(SubContext(SubContextParams(1, 1)))
 
     depart_field_body = _pop_context
 
@@ -611,7 +618,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         return ctx
 
     def visit_table(self, _node):
-        self._push_context(TableContext(prefix_eol=1, suffix_eol=1))
+        self._push_context(TableContext(params=SubContextParams(1, 1)))
 
     depart_table = _pop_context
 
@@ -664,7 +671,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
             marker = f"{marker}. "
             self.list_context[-1] += 1
         # Make sure the list item prefix starts at a new line
-        self._push_context(IndentContext(marker, only_first=True, prefix_eol=1))
+        self._push_context(IndentContext(marker, only_first=True, params=SubContextParams(1)))
 
     def _end_list_item(self):
         self._pop_context()
