@@ -23,7 +23,6 @@ https://github.com/docutils/docutils/blob/master/docutils/docutils/writers/html5
 """
 import posixpath
 import re
-from textwrap import dedent
 from typing import TYPE_CHECKING, Dict, List, Union
 
 from docutils import languages, nodes
@@ -472,8 +471,8 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     depart_reference = _pop_context
 
     def visit_download_reference(self, node):
-        filename = self._adjust_url(node.get("filename", ""))
-        self._push_context(WrappedContext("[", f"]({filename})"))
+        reftarget = self._adjust_url(node.get("reftarget", ""))
+        self._push_context(WrappedContext("[", f"]({reftarget})"))
 
     depart_download_reference = _pop_context
 
@@ -489,12 +488,6 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         if ref_id is None:
             return
         self._add_anchor(ref_id)
-
-    def visit_only(self, node):
-        if node["expr"] != "markdown":
-            raise nodes.SkipNode
-        self.add(dedent(node.astext()))
-        self.ensure_eol()
 
     def unknown_visit(self, node):
         """Warn once per instance for unsupported nodes."""
