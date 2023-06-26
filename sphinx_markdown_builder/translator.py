@@ -160,15 +160,17 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         self._pop_context(count=2**31)
         assert len(self._ctx_queue) == 1
 
-        head = self._doc_info.make().strip()
-        body = self._ctx_queue[0].make().strip()
-        if head:
-            return f"{head}\n\n{body}\n"
-        return f"{body}\n"
+        ctx = SubContext()
+        ctx.add(self._doc_info.make().strip())
+        ctx.ensure_eol(2)
+        ctx.add(self._ctx_queue[0].make().strip())
+        ctx.ensure_eol(1)
+        ctx.add("")
+        return ctx.make()
 
     def add(self, value: str):
         """
-        Add `value` to `section`.
+        Add `value` to current context.
 
         Parameters
         ----------
@@ -190,15 +192,9 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
                 break
 
             last_ctx = self._ctx_queue.pop()
-            content = last_ctx.make()
-
-            if last_ctx.target == "body":
-                ctx = self.ctx
-            else:
-                ctx = self._doc_info
-
+            ctx = self.ctx if last_ctx.target == "body" else self._doc_info
             ctx.ensure_eol(last_ctx.prefix_eol)
-            ctx.add(content)
+            ctx.add(last_ctx.make())
             ctx.ensure_eol(last_ctx.suffix_eol)
 
     def _start_level(self, prefix: str):

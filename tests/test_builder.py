@@ -6,9 +6,12 @@ import shutil
 import stat
 from pathlib import Path
 from typing import Iterable
+from unittest.mock import Mock
 
 import pytest
 from sphinx.cmd.build import main
+
+from sphinx_markdown_builder.translator import MarkdownTranslator
 
 BUILD_PATH = "./tests/docs-build"
 SOURCE_PATH = "./tests/source"
@@ -76,3 +79,18 @@ def test_builder_access_issue(flags: Iterable[str], build_path: str):
         run_sphinx(build_path, *flags)
     finally:
         _chmod_output(build_path, lambda mode: mode | flag)
+
+
+def test_bad_attribute():
+    document = Mock(name="document")
+    document.settings.language_code = "en"
+    builder = Mock(name="builder")
+    mt = MarkdownTranslator(document, builder)
+    with pytest.raises(AttributeError):
+        print(mt.some_bad_argument)
+
+    with pytest.raises(AttributeError):
+        print(mt.visit_some_bad_argument)
+
+    with pytest.raises(AttributeError):
+        print(mt.depart_some_bad_argument)
