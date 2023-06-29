@@ -420,7 +420,11 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
     @pushing_context
     def visit_subtitle(self, _node):
-        self._push_context(TitleContext(self.section_level + 1))
+        """
+        Docutils does not promote subtitles, so this might never be called.
+        However, we keep it here in case some future version will change this behaviour.
+        """
+        self._push_context(TitleContext(self.section_level + 1))  # pragma: no cover
 
     @pushing_context
     def visit_rubric(self, _node):

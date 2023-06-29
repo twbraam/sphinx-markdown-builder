@@ -20,7 +20,7 @@ class UniqueString(str):
 if sys.version_info >= (3, 8):
     Target = typing.Literal["body", "head"]
 else:
-    Target = str
+    Target = str  # pragma: no cover
 
 DEFAULT_TARGET = "body"
 CONTENT_START = UniqueString("content start")
@@ -73,8 +73,12 @@ class SubContext:
                 missing_count = 0
             if missing_count <= 0 or SPACE_CHARS.fullmatch(value) is None:
                 break
+
+            # This can only happen if the node's text had trailing EOL.
+            # But docutils notes are expected to be without.
+            # So this test is really just to avoid bugs.
             if value == EOL:
-                missing_count -= 1
+                missing_count -= 1  # pragma: no cover
 
         return max(0, missing_count)
 
