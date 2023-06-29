@@ -15,7 +15,7 @@ class MarkdownWriter(writers.Writer):
 
     # Add configuration settings for additional Markdown flavours here.
     settings_spec = (
-        "Markdown-Specific Options",
+        "Markdown writer options",
         None,
         (
             (
@@ -42,7 +42,7 @@ class MarkdownWriter(writers.Writer):
     translator_class = MarkdownTranslator
 
     def __init__(self, builder=None):
-        writers.Writer.__init__(self)
+        super().__init__()
         self.builder = builder
 
     def translate(self):

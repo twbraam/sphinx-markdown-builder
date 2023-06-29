@@ -63,6 +63,3 @@ templates_path = ["_templates"]
 exclude_patterns = ["expected"]
 
 language = "en"
-
-markdown_anchor_sections = True
-markdown_anchor_signatures = True

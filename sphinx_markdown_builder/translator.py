@@ -6,8 +6,9 @@ See Also
 The Docutils Document Tree:
 https://docutils.sourceforge.io/docs/ref/doctree.html
 
-reStructuredText Markup Specification:
+reStructuredText Markup Specification/Directives:
 https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html
+https://docutils.sourceforge.net/docs/ref/rst/directives.html
 
 Doctree node classes added by Sphinx:
 https://www.sphinx-doc.org/en/master/extdev/nodes.html
@@ -23,7 +24,7 @@ https://github.com/docutils/docutils/blob/master/docutils/docutils/writers/html5
 """
 import posixpath
 import re
-from typing import TYPE_CHECKING, Dict, List, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Union
 
 from docutils import languages, nodes
 from sphinx.util.docutils import SphinxTranslator
@@ -31,25 +32,28 @@ from sphinx.util.docutils import SphinxTranslator
 from sphinx_markdown_builder.contexts import (
     CommaSeparatedContext,
     DocInfoContext,
-    GenericDocInfoContext,
     IndentContext,
     ItalicContext,
+    MetaContext,
     PushContext,
     StrongContext,
     SubContext,
     SubContextParams,
     SubscriptContext,
     TableContext,
+    TitleContext,
     UniqueString,
     WrappedContext,
 )
-from sphinx_markdown_builder.escape import escape_chars
+from sphinx_markdown_builder.escape import escape_html_quote, escape_markdown_chars
 
 if TYPE_CHECKING:  # pragma: no cover
     from sphinx_markdown_builder import MarkdownBuilder
 
 VISIT_DEPART_PATTERN = re.compile("(visit|depart)_(.+)")
 SKIP = UniqueString("skip")
+
+DOC_INFO_FIELDS = "author", "contact", "copyright", "date", "organization", "revision", "status", "version"
 
 PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint: disable=use-dict-literal
     # Doctree elements for which Markdown element is <prefix><content><suffix>
@@ -62,18 +66,10 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
     literal_emphasis=ItalicContext,
     field_name=StrongContext,  # e.g 'returns', 'parameters'
     # Doc info elements
-    docinfo=GenericDocInfoContext,
-    address=DocInfoContext,
-    author=DocInfoContext,
+    docinfo=DocInfoContext,
+    docinfo_item=DocInfoContext,
+    **dict.fromkeys(DOC_INFO_FIELDS, DocInfoContext),
     authors=None,  # not used: visit_author is called anyway for each author.
-    contact=DocInfoContext,
-    copyright=DocInfoContext,
-    date=DocInfoContext,
-    organization=DocInfoContext,
-    revision=DocInfoContext,
-    status=DocInfoContext,
-    version=DocInfoContext,
-    docinfo_item=GenericDocInfoContext,
     # Doctree elements to skip subtree
     autosummary_toc=SKIP,
     nbplot_epilogue=SKIP,
@@ -94,8 +90,6 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
     mpl_hint=None,
     pending_xref=None,
     compound=None,
-    line=None,
-    line_block=None,
     desc_addname=None,  # module pre-roll for class/method
     desc_content=None,  # the description of the class/method
     desc_name=None,  # name of the class/method
@@ -110,6 +104,16 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
 )
 
 
+def pushing_context(method):
+    """Marks method as pushing context"""
+    match = VISIT_DEPART_PATTERN.fullmatch(method.__name__)
+    assert match is not None
+    state, _ = match.groups()
+    assert state == "visit"
+    setattr(method, "__pushing_context__", True)
+    return method
+
+
 class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     def __init__(self, document: nodes.document, builder: "MarkdownBuilder"):
         super().__init__(document, builder)
@@ -119,37 +123,32 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         # Warn only once per writer about unsupported elements
         self._warned = set()
 
-        # FIFO Sub context allow us to handle unique cases when post-processing is required.
-        self._ctx_queue: List[SubContext] = []
+        # FIFO Sub context allow us to handle unique cases when post-processing is required
+        self._ctx_queue: List[SubContext] = [SubContext()]
         self._doc_info: SubContext = SubContext()
 
-        # Current section heading level during writing
+        # Current section heading level
         self.section_level = 0
-
-        # Flag indicating we are processing docinfo items
-        self._in_docinfo = False
 
         # Flag for whether to escape characters
         self._escape_text = True
 
+        # Saves the current list type
         self.list_context: List[Union[str, int]] = []
 
         # Saves the current descriptor type
         self.desc_context: List[str] = []
 
-        # Reset attributes modified by reading
-        self.reset()
+        if self.config.markdown_docinfo:
+            self._add_doc_info_from_config()
 
-    def reset(self):
-        """Initialize object for fresh read."""
-        self._ctx_queue = [SubContext()]
-        self._doc_info = IndentContext("% ", params=SubContextParams(target="head"))
-
-        self.section_level = 0
-        self._in_docinfo = False
-        self._escape_text = True
-        self.list_context = []
-        self.desc_context = []
+    def _add_doc_info_from_config(self):
+        for key in DOC_INFO_FIELDS:
+            value = getattr(self.config, key, "")
+            if isinstance(value, str):
+                self._push_context(MetaContext(key))
+                self.ctx.add(value)
+                self._pop_context()
 
     @property
     def ctx(self) -> SubContext:
@@ -161,23 +160,14 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         assert len(self._ctx_queue) == 1
 
         ctx = SubContext()
-        ctx.add(self._doc_info.make().strip())
-        ctx.ensure_eol(2)
-        ctx.add(self._ctx_queue[0].make().strip())
-        ctx.ensure_eol(1)
-        ctx.add("")
+        for sub_ctx in (self._doc_info, self._ctx_queue[0]):
+            ctx.add(sub_ctx.make().strip(), prefix_eol=2, suffix_eol=1)
+        ctx.force_eol(1)
         return ctx.make()
 
-    def add(self, value: str):
-        """
-        Add `value` to current context.
-
-        Parameters
-        ----------
-        value : str
-            String to add to output document
-        """
-        self.ctx.add(value)
+    def add(self, value: str, prefix_eol: int = 0, suffix_eol: int = 0):
+        """See `SubContext.add()`"""
+        self.ctx.add(value, prefix_eol, suffix_eol)
 
     def ensure_eol(self, count=1):
         """Ensure the last line in current base is terminated by X new lines."""
@@ -193,22 +183,11 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
             last_ctx = self._ctx_queue.pop()
             ctx = self.ctx if last_ctx.params.target == "body" else self._doc_info
-            ctx.ensure_eol(last_ctx.params.prefix_eol)
-            ctx.add(last_ctx.make())
-            ctx.ensure_eol(last_ctx.params.suffix_eol)
+            ctx.add(last_ctx.make(), last_ctx.params.prefix_eol, last_ctx.params.suffix_eol)
 
-    def _start_level(self, prefix: str):
-        """Create a new IndentLevel with `prefix` and `first_prefix`"""
-        self._push_context(IndentContext(prefix))
-
-    _finish_level = _pop_context
-
-    def _start_box(self, title: str):
-        self.ensure_eol(2)
-        self.add(f"#### {title}")
+    def _push_box(self, title: str):
+        self.add(f"#### {title}", prefix_eol=2)
         self._push_context(SubContext(SubContextParams(1, 2)))
-
-    _end_box = _pop_context
 
     def _pass(self, _node=None):
         pass
@@ -223,61 +202,75 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         except AttributeError:
             return False
 
-    def __getattribute__(self, item):
-        # First try to get an existing attribute
+    def _get_attr(self, item, default=None):
         try:
             return super().__getattribute__(item)
-        except AttributeError as ex:
-            exp = ex
+        except AttributeError:
+            return default
 
+    def __getattribute__(self, item):
+        """Uses some predefined rules to reduce the visit/depart method clutter in the class"""
+        try:
+            # First try to get an existing attribute
+            return super().__getattribute__(item)
+        except AttributeError as ex:
+            predefined_method = self._find_predefined_method(item)
+            if predefined_method is not None:
+                return predefined_method
+            raise ex
+
+    def _find_predefined_method(self, item) -> Optional[Callable]:  # pylint: disable=too-many-return-statements
         match = VISIT_DEPART_PATTERN.fullmatch(item)
         if match is None:
-            raise exp
-
+            # We only care about visit/depart methods
+            return None
         state, element = match.groups()
-        if element in PREDEFINED_ELEMENTS:
-            action = PREDEFINED_ELEMENTS[element]
-            if action is None:
-                return self._pass
-            if action is SKIP:
-                return self._skip
-            if isinstance(action, PushContext):
-                if state == "visit":
-                    return lambda node: self._push_context(action.create(node, element))
+
+        action = PREDEFINED_ELEMENTS.get(element, "__undefined__")
+        if action is None:
+            return self._pass
+        if action is SKIP:
+            return self._skip
+        if isinstance(action, PushContext):
+            if state == "visit":
+                return lambda node: self._push_context(action.create(node, element))
+            return self._pop_context
+
+        # If the visit method is marked as pushing, then pop the context
+        if state == "depart":
+            visit_method = self._get_attr(f"visit_{element}", None)
+            is_pushing = getattr(visit_method, "__pushing_context__", False)
+            if is_pushing:
                 return self._pop_context
 
-        # If one of the handlers is defined, automatically add the other
+        # If one of the handlers is defined, automatically add the other as an empty handler
         if self._has_attr(f"visit_{element}") or self._has_attr(f"depart_{element}"):
             return self._pass
 
-        raise exp
+        return None
 
     ################################################################################
     # visit/depart handlers
     ################################################################################
 
+    @pushing_context
     def visit_warning(self, _node):
         """Sphinx warning directive."""
-        self._start_box("WARNING")
+        self._push_box("WARNING")
 
-    depart_warning = _end_box
-
+    @pushing_context
     def visit_note(self, _node):
         """Sphinx note directive."""
-        self._start_box("NOTE")
+        self._push_box("NOTE")
 
-    depart_note = _end_box
-
+    @pushing_context
     def visit_seealso(self, _node):
         """Sphinx see also directive."""
-        self._start_box("SEE ALSO")
+        self._push_box("SEE ALSO")
 
-    depart_seealso = _end_box
-
+    @pushing_context
     def visit_attention(self, _node):
-        self._start_box("ATTENTION")
-
-    depart_attention = _end_box
+        self._push_box("ATTENTION")
 
     def visit_image(self, node):
         """Image directive."""
@@ -291,7 +284,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     def visit_Text(self, node):  # pylint: disable=invalid-name
         text = node.astext().replace("\r", "")
         if self._escape_text:
-            text = escape_chars(text)
+            text = escape_markdown_chars(text)
         self.add(text)
 
     def visit_comment(self, _node):
@@ -302,12 +295,32 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         self._pop_context()
         self._escape_text = True
 
+    @pushing_context
     def visit_paragraph(self, _node):
-        self.ensure_eol(2)
+        self._push_context(SubContext(SubContextParams(2, 2)))
 
-    depart_paragraph = visit_paragraph
     visit_compact_paragraph = visit_paragraph
-    depart_compact_paragraph = depart_paragraph
+
+    ################################################################################
+    # Line block
+    ################################################################################
+    # line_block
+    #   line
+    #   line
+    #   line
+    ################################################################################
+
+    @pushing_context
+    def visit_line_block(self, _node):
+        self._push_context(SubContext(SubContextParams(1, 1)))
+
+    @pushing_context
+    def visit_line(self, _node):
+        self._push_context(SubContext(SubContextParams(1, 1)))
+
+    def depart_line(self, _node):
+        self._pop_context()
+        self.add("<br/>", prefix_eol=1, suffix_eol=1)
 
     ################################################################################
     # Definition
@@ -319,12 +332,11 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     #       paragraph
     ################################################################################
 
+    @pushing_context
     def visit_definition(self, _node):
         self._push_context(
             IndentContext(": ", only_first=True, support_multi_line_break=True, params=SubContextParams(1, 2))
         )
-
-    depart_definition = _pop_context
 
     def visit_math_block(self, _node):
         """docutils math block"""
@@ -381,11 +393,9 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
     depart_doctest_block = depart_literal_block
 
+    @pushing_context
     def visit_block_quote(self, _node):
-        self.ensure_eol()
-        self._start_level("> ")
-
-    depart_block_quote = _finish_level
+        self._push_context(IndentContext("> "))
 
     def visit_problematic(self, node):
         self.ensure_eol(2)
@@ -394,43 +404,33 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         raise nodes.SkipNode
 
     def visit_section(self, node):
+        self.ensure_eol(2)
         if self.config.markdown_anchor_sections:
             for anchor in node.get("ids", []):
                 self._add_anchor(anchor)
 
         self.section_level += 1
-        self.ensure_eol(2)
 
     def depart_section(self, _node):
         self.section_level -= 1
 
+    @pushing_context
     def visit_title(self, _node):
-        self.ensure_eol(2)
-        self.add((self.section_level * "#") + " ")
+        self._push_context(TitleContext(self.section_level))
 
-    def depart_title(self, _node):
-        self.ensure_eol(2)
-
+    @pushing_context
     def visit_subtitle(self, _node):
-        self.ensure_eol(2)
-        self.add((self.section_level + 2) * "#" + " ")
+        self._push_context(TitleContext(self.section_level + 1))
 
-    depart_subtitle = depart_title
-
+    @pushing_context
     def visit_rubric(self, _node):
-        """Sphinx Rubric, a heading without relation to the document sectioning
-        https://docutils.sourceforge.net/docs/ref/rst/directives.html#rubric."""
-        self.ensure_eol(2)
-        self.add("### ")
-
-    depart_rubric = depart_title
+        """Sphinx Rubric, a heading without relation to the document sectioning"""
+        self._push_context(TitleContext(3))
 
     def visit_transition(self, _node):
-        # Simply replace a transition by a horizontal rule.
-        # Could use three or more '*', '_' or '-'.
-        self.ensure_eol(2)
-        self.add("---")
-        self.ensure_eol(1)
+        """Simply replace a transition by a horizontal rule."""
+        # Can use three or more '*', '_' or '-'.
+        self.add("---", prefix_eol=2, suffix_eol=1)
         raise nodes.SkipNode
 
     def _adjust_url(self, url: str):
@@ -464,24 +464,21 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
         return uri
 
+    @pushing_context
     def visit_reference(self, node):
         url = self._fetch_ref_uri(node)
         self._push_context(WrappedContext("[", f"]({url})"))
 
-    depart_reference = _pop_context
-
+    @pushing_context
     def visit_download_reference(self, node):
         reftarget = self._adjust_url(node.get("reftarget", ""))
         self._push_context(WrappedContext("[", f"]({reftarget})"))
 
-    depart_download_reference = _pop_context
-
     def _add_anchor(self, anchor: str):
-        self._escape_text = False
-        self.ensure_eol()
-        self.add(f'<a id="{anchor}"></a>')
-        self.ensure_eol()
-        self._escape_text = True
+        content = f'<a id="{escape_html_quote(anchor)}"></a>'
+        # Prevent adding the same anchor twice in the same context
+        if content not in self.ctx.content:
+            self.add(content, prefix_eol=1, suffix_eol=1)
 
     def visit_target(self, node):
         ref_id = node.get("refid", None)
@@ -496,6 +493,47 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
             self.document.reporter.warning("The " + node_type + " element not yet supported in Markdown.")
             self._warned.add(node_type)
         raise nodes.SkipNode
+
+    ################################################################################
+    # lists
+    ################################################################################
+    # enumerated_list/bullet_list
+    #     list_item
+    #       paragraph (optional)
+    ###############################################################################
+
+    def _start_list(self, marker: Union[int, str]):
+        self.ensure_eol()
+        if isinstance(marker, str) and marker[-1] != " ":
+            marker += " "
+        self.list_context.append(marker)
+
+    def _end_list(self, _node=None):
+        self.list_context.pop()
+        # We need two line breaks to make sure the next paragraph will not merge into the list
+        self.ensure_eol(2)
+
+    def _start_list_item(self, _node=None):
+        marker = self.list_context[-1]
+        if isinstance(marker, int):
+            marker = f"{marker}. "
+            self.list_context[-1] += 1
+        # Make sure the list item prefix starts at a new line
+        self._push_context(IndentContext(marker, only_first=True, params=SubContextParams(1, 1)))
+
+    _end_list_item = _pop_context
+
+    def visit_enumerated_list(self, _node):
+        self._start_list(1)
+
+    depart_enumerated_list = _end_list
+
+    def visit_bullet_list(self, node):
+        self._start_list(node.attributes.get("bullet", "*"))
+
+    depart_bullet_list = _end_list
+    visit_list_item = _start_list_item
+    depart_list_item = _end_list_item
 
     ################################################################################
     # desc
@@ -519,6 +557,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     def depart_desc(self, _node):
         self.desc_context.pop()
 
+    @pushing_context
     def visit_desc_signature(self, node):
         """the main signature of class/method"""
 
@@ -530,11 +569,8 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         # We don't want methods to be at the same level as classes,
         # If signature has a non-null class, that's means it is a signature
         # of a class method
-        self.ensure_eol()
-        if node.attributes.get("class", None):
-            self.add("#### ")
-        else:
-            self.add("### ")
+        h_level = 4 if node.get("class", None) else 3
+        self._push_context(TitleContext(h_level))
 
     def visit_desc_parameterlist(self, _node):
         self._push_context(WrappedContext("(", ")", wrap_empty=True))
@@ -542,10 +578,6 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
     def depart_desc_parameterlist(self, _node):
         self._pop_context(count=2)
-
-    def depart_desc_signature(self, _node):
-        """the main signature of class/method"""
-        self.ensure_eol()
 
     @property
     def sep_ctx(self) -> CommaSeparatedContext:
@@ -555,28 +587,23 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
     def visit_desc_parameter(self, _node):
         """single method/class ctr param"""
-        self.sep_ctx.enter_parameter()
+        self.sep_ctx.enter_parameter()  # workaround pylint: disable=no-member
 
     def depart_desc_parameter(self, _node):
-        self.sep_ctx.exit_parameter()
+        self.sep_ctx.exit_parameter()  # workaround pylint: disable=no-member
 
     def visit_field_list(self, _node):
         self._start_list("*")
 
-    def depart_field_list(self, _node):
-        self._end_list()
+    depart_field_list = _end_list
+    visit_field = _start_list_item
+    depart_field = _end_list_item
 
-    def visit_field(self, _node):
-        self._start_list_item()
-
-    def depart_field(self, _node):
-        self._end_list_item()
-
+    @pushing_context
     def visit_field_body(self, _node):
         self._push_context(SubContext(SubContextParams(1, 1)))
 
-    depart_field_body = _pop_context
-
+    @pushing_context
     def visit_versionmodified(self, node):
         """
         Node for version change entries.
@@ -584,9 +611,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         Type will hold something like 'deprecated'
         """
         node_type = node.attributes["type"].capitalize()
-        self._start_box(node_type)
-
-    depart_versionmodified = _end_box
+        self._push_box(node_type)
 
     ################################################################################
     # tables
@@ -610,80 +635,30 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         assert isinstance(ctx, TableContext)
         return ctx
 
+    @pushing_context
     def visit_table(self, _node):
         self._push_context(TableContext(params=SubContextParams(1, 1)))
 
-    depart_table = _pop_context
-
     def visit_thead(self, _node):
-        self.table_ctx.enter_head()
+        self.table_ctx.enter_head()  # workaround pylint: disable=no-member
 
     def depart_thead(self, _node):
-        self.table_ctx.exit_head()
+        self.table_ctx.exit_head()  # workaround pylint: disable=no-member
 
     def visit_tbody(self, _node):
-        self.table_ctx.enter_body()
+        self.table_ctx.enter_body()  # workaround pylint: disable=no-member
 
     def depart_tbody(self, _node):
-        self.table_ctx.exit_body()
+        self.table_ctx.exit_body()  # workaround pylint: disable=no-member
 
     def visit_row(self, _node):
-        self.table_ctx.enter_row()
+        self.table_ctx.enter_row()  # workaround pylint: disable=no-member
 
     def depart_row(self, _node):
-        self.table_ctx.exit_row()
+        self.table_ctx.exit_row()  # workaround pylint: disable=no-member
 
     def visit_entry(self, _node):
-        self.table_ctx.enter_entry()
+        self.table_ctx.enter_entry()  # workaround pylint: disable=no-member
 
     def depart_entry(self, _node):
-        self.table_ctx.exit_entry()
-
-    ################################################################################
-    # lists
-    ################################################################################
-    # enumerated_list/bullet_list
-    #     list_item
-    #       paragraph (optional)
-    ###############################################################################
-
-    def _start_list(self, marker: Union[int, str]):
-        self.ensure_eol()
-        if isinstance(marker, str) and marker[-1] != " ":
-            marker += " "
-        self.list_context.append(marker)
-
-    def _end_list(self):
-        self.list_context.pop()
-        # We need two line breaks to make sure the next paragraph will not merge into the list
-        self.ensure_eol(2)
-
-    def _start_list_item(self):
-        marker = self.list_context[-1]
-        if isinstance(marker, int):
-            marker = f"{marker}. "
-            self.list_context[-1] += 1
-        # Make sure the list item prefix starts at a new line
-        self._push_context(IndentContext(marker, only_first=True, params=SubContextParams(1)))
-
-    def _end_list_item(self):
-        self._pop_context()
-        # Make sure the list item ends with a new line
-        self.ensure_eol()
-
-    def visit_enumerated_list(self, _node):
-        self._start_list(1)
-
-    def depart_enumerated_list(self, _node):
-        self._end_list()
-
-    def visit_bullet_list(self, node):
-        self._start_list(node.attributes.get("bullet", "*"))
-
-    depart_bullet_list = depart_enumerated_list
-
-    def visit_list_item(self, _node):
-        self._start_list_item()
-
-    def depart_list_item(self, _node):
-        self._end_list_item()
+        self.table_ctx.exit_entry()  # workaround pylint: disable=no-member

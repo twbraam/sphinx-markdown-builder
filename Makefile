@@ -28,16 +28,18 @@ docs: doc-markdown
 
 
 test:
-	@# Build http first, then direct because we only care about the index file of the direct tests
-	@$(SPHINX_BUILD) -M markdown "$(SOURCE_DIR)" "$(BUILD_DIR)/http" $(SPHINX_OPTS) $(O) -a \
-			-D markdown_http_base="https://localhost" -D markdown_uri_doc_suffix=".html"
-	@$(SPHINX_BUILD) -M markdown "$(SOURCE_DIR)" "$(BUILD_DIR)/direct" $(SPHINX_OPTS) $(O) -a -t Partners
-	cp "$(BUILD_DIR)/http/markdown/auto-summery.md" "$(BUILD_DIR)/direct/markdown/http-auto-summery.md"
-	diff --recursive "$(BUILD_DIR)/direct/markdown" "$(EXPECTED_DIR)"
+	@$(SPHINX_BUILD) -M markdown "$(SOURCE_DIR)" "$(BUILD_DIR)" $(SPHINX_OPTS) $(O) -a -t Partners
+	@# Build overrides and copy just one file for verification
+	@$(SPHINX_BUILD) -M markdown "$(SOURCE_DIR)" "$(BUILD_DIR)/overrides" $(SPHINX_OPTS) $(O) -a \
+			-D markdown_http_base="https://localhost" -D markdown_uri_doc_suffix=".html" \
+			-D markdown_docinfo=True -D markdown_anchor_sections=True -D markdown_anchor_signatures=True
+
+	cp "$(BUILD_DIR)/overrides/markdown/auto-summery.md" "$(BUILD_DIR)/markdown/overrides-auto-summery.md"
+	diff --recursive "$(BUILD_DIR)/markdown" "$(EXPECTED_DIR)"
 
 
 meld:
-	meld "$(BUILD_DIR)/direct/markdown" "$(EXPECTED_DIR)" &
+	meld "$(BUILD_DIR)/markdown" "$(EXPECTED_DIR)" &
 
 
 release:

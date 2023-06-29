@@ -22,3 +22,20 @@ Code Example
 
 >>> print("this is a Doctest block.")
 this is a Doctest block.
+
+
+==========
+Line Block
+==========
+
+| text
+  sub text
+| more text
+|
+|
+
+
+Other text
+----------
+
+other text

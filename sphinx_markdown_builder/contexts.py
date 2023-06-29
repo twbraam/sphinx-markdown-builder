@@ -10,6 +10,8 @@ from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type,
 
 from tabulate import tabulate
 
+from sphinx_markdown_builder.escape import escape_html_quote
+
 
 class UniqueString(str):
     pass
@@ -77,17 +79,38 @@ class SubContext:
         return max(0, missing_count)
 
     def ensure_eol(self, count: int = 1):
+        """Ensures an EOL will be added before the next appended value"""
         self.ensure_eol_count = max(self.ensure_eol_count, count)
 
-    def add(self, value: str):
+    def force_eol(self, count: int = 1):
+        """Force adding the ensured EOLs"""
+        self.ensure_eol(count)
         missing_eol = self._count_missing_eol()
         if missing_eol > 0:
             self.content.append(EOL * missing_eol)
 
+    def add(self, value: str, prefix_eol: int = 0, suffix_eol: int = 0):
+        """
+        Add `value` to current context.
+
+        Parameters
+        ----------
+        value : str
+            String to add to output document
+        prefix_eol: int
+            Ensures prefix EOL
+        suffix_eol: int
+            Ensures suffix EOL
+        """
+        if not value:
+            return
+
+        self.force_eol(prefix_eol)
         self.content.append(value)
-        self.ensure_eol_count = 0
+        self.ensure_eol_count = suffix_eol
 
     def make(self) -> str:
+        """Generate the context's content"""
         return "".join(self.content)
 
 
@@ -215,7 +238,7 @@ class IndentContext(SubContext):
         prefix,
         only_first=False,
         support_multi_line_break=False,
-        params=SubContextParams(),
+        params=SubContextParams(1, 1),
     ):
         super().__init__(params)
         self.support_multi_line_break = support_multi_line_break
@@ -234,6 +257,43 @@ class IndentContext(SubContext):
         if self.first_prefix is None:
             return content
         return content.replace(self.prefix, self.first_prefix, 1)
+
+
+class NoLineBreakContext(SubContext):
+    def __init__(self, breaker=" ", params=SubContextParams()):
+        super().__init__(params)
+        self.breaker = breaker
+
+    def make(self):
+        return super().make().strip().replace(EOL, self.breaker)
+
+
+class TitleContext(NoLineBreakContext):
+    def __init__(self, level: int, params=SubContextParams(2, 2)):
+        super().__init__("<br/>", params)
+        self.level = level
+
+    @property
+    def section_prefix(self):
+        return "#" * self.level
+
+    def make(self):
+        content = super().make()
+        assert len(content) > 0, "Empty title"
+        return f"{self.section_prefix} {content}"
+
+
+class MetaContext(NoLineBreakContext):
+    def __init__(self, name: str, params=SubContextParams(1, 1, "head")):
+        super().__init__("<br/>", params)
+        assert name, "Empty meta name"
+        self.name = name
+
+    def make(self):
+        content = super().make()
+        if not content:
+            return ""
+        return f'<meta name="{escape_html_quote(self.name)}" content="{escape_html_quote(content)}"/>'
 
 
 _ContextT = TypeVar("_ContextT", bound=SubContext)
@@ -264,10 +324,7 @@ class PushContext(Generic[_ContextT]):  # pylint: disable=too-few-public-methods
 ItalicContext = PushContext(WrappedContext, "*")  # _ is more restrictive
 StrongContext = PushContext(WrappedContext, "**")  # _ is more restrictive
 SubscriptContext = PushContext(WrappedContext, "<sub>", "</sub>")
-GenericDocInfoContext = PushContext(SubContext, SubContextParams(1, 1, "head"))
 DocInfoContext = PushContext(
-    IndentContext,
-    only_first=True,
-    params=SubContextParams(1, 1, "head"),
-    translator=lambda _node, elem: {"prefix": f"{elem}: "},
+    MetaContext,
+    translator=lambda _node, elem: {"name": f"{elem}: "},
 )

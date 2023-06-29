@@ -1,6 +1,3 @@
-<a id="module-my_module.submodule"></a>
-<a id="my-module-submodule"></a>
-
 # my_module.submodule
 
 Example sub-module

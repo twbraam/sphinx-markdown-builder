@@ -1,5 +1,3 @@
-<a id="math-example"></a>
-
 # Math Example
 
 Formula 1
@@ -14,11 +12,23 @@ $$
 \frac{ \sum_{t=0}^{N}f(t,k) }{N}
 $$
 
-<a id="code-example"></a>
-
 # Code Example
 
 ```pycon
 >>> print("this is a Doctest block.")
 this is a Doctest block.
 ```
+
+# Line Block
+
+text
+sub text
+<br/>
+more text
+<br/>
+<br/>
+<br/>
+
+## Other text
+
+other text

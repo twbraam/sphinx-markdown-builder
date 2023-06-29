@@ -13,3 +13,4 @@ def setup(app):
     app.add_config_value("markdown_uri_doc_suffix", ".md", False)
     app.add_config_value("markdown_anchor_sections", False, False)
     app.add_config_value("markdown_anchor_signatures", False, False)
+    app.add_config_value("markdown_docinfo", False, False)

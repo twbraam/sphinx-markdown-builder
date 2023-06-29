@@ -1,6 +1,5 @@
 <!-- Taken from https://github.com/openedx/edx-documentation/blob/master/en_us/links/links.rst -->
 <!-- Include this file in any file that includes a non-doc link. -->
-<a id="links"></a>
 
 # Links
 

@@ -1,6 +1,3 @@
-<a id="module-my_module"></a>
-<a id="my-module"></a>
-
 # my_module
 
 Example module
@@ -13,7 +10,6 @@ Example module
 
 ### Classes and Functions
 
-<a id="my_module.deprecated_function"></a>
 ### deprecated_function()
 
 Some old function.

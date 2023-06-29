@@ -48,6 +48,10 @@ import re
 ESCAPE_RE = re.compile(r"([\\*`]|(?:^|(?<=\s|_))_)", re.M)
 
 
-def escape_chars(txt: str):
-    # Escape (some) characters with special meaning for Markdown
+def escape_markdown_chars(txt: str):
+    """Escape (some) characters with special meaning for Markdown"""
     return ESCAPE_RE.sub(r"\\\1", txt)
+
+
+def escape_html_quote(value: str):
+    return value.replace('"', "&quot;")

@@ -1,5 +1,3 @@
-<a id="main-test-file"></a>
-
 # Main Test File
 
 * [Example .rst File](ExampleRSTFile.md)
@@ -81,4 +79,7 @@
 * [Indices and tables](auto-summery.md#indices-and-tables)
 * [Math Example](blocks.md)
 * [Code Example](blocks.md#code-example)
+* [Line Block](blocks.md#line-block)
+
+  * [Other text](blocks.md#other-text)
 * [Test Image With Target](image-target.md)

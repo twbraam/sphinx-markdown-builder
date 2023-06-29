@@ -35,6 +35,7 @@ You can add the following configurations to your `conf.py` file:
 * `markdown_uri_doc_suffix`: If set, all references will link to documents with this suffix.
 * `markdown_anchor_sections`/`markdown_anchor_signatures`: If set to `True`, then anchors will be added before each section/function/class signature. 
  This allows references to a specific anchor in the document.
+* `markdown_docinfo`: Adds metadata to the top of each document containing author, copyright, and version.
 
 For example, if your `conf.py` file have the following configuration:
 ```python

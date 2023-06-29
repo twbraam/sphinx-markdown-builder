@@ -16,9 +16,23 @@ from sphinx_markdown_builder.translator import MarkdownTranslator
 BUILD_PATH = "./tests/docs-build"
 SOURCE_PATH = "./tests/source"
 
-TEST_NAMES = ["direct", "http"]
-SOURCE_FLAGS = [[], ["-D", 'markdown_http_base="https://localhost"', "-D", 'markdown_uri_doc_suffix=".html"']]
-BUILD_PATH_OPTIONS = [os.path.join(BUILD_PATH, "direct"), os.path.join(BUILD_PATH, "http")]
+TEST_NAMES = ["defaults", "overrides"]
+SOURCE_FLAGS = [
+    [],
+    [
+        "-D",
+        'markdown_http_base="https://localhost"',
+        "-D",
+        'markdown_uri_doc_suffix=".html"',
+        "-D",
+        "markdown_docinfo=True",
+        "-D",
+        "markdown_anchor_sections=True",
+        "-D",
+        "markdown_anchor_signatures=True",
+    ],
+]
+BUILD_PATH_OPTIONS = [BUILD_PATH, os.path.join(BUILD_PATH, "overrides")]
 OPTIONS = list(zip(SOURCE_FLAGS, BUILD_PATH_OPTIONS))
 
 
