@@ -75,10 +75,10 @@ class SubContext:
                 break
 
             # This can only happen if the node's text had trailing EOL.
-            # But docutils notes are expected to be without.
-            # So this test is really just to avoid bugs.
+            # But docutils nodes are expected to be without.
+            # So this validation is to avoid redundant EOLs if this behaviour changes in future releases.
             if value == EOL:
-                missing_count -= 1  # pragma: no cover
+                missing_count -= 1
 
         return max(0, missing_count)
 

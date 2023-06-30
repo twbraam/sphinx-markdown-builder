@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import pytest
 from sphinx.cmd.build import main
 
+from sphinx_markdown_builder.contexts import SubContext
 from sphinx_markdown_builder.translator import MarkdownTranslator
 
 BUILD_PATH = "./tests/docs-build"
@@ -108,3 +109,12 @@ def test_bad_attribute():
 
     with pytest.raises(AttributeError):
         print(mt.depart_some_bad_argument)
+
+
+def test_trailing_eol():
+    ctx = SubContext()
+    # We add spaces to make sure we ignore them
+    ctx.add("\n \t ")
+    ctx.add("test", prefix_eol=1)
+    ctx.force_eol(1)
+    assert ctx.make() == "\n \t test\n"
