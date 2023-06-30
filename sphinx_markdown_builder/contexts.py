@@ -6,7 +6,7 @@ import sys
 import textwrap
 import typing
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type, TypeVar, Union
 
 from tabulate import tabulate
 
@@ -43,6 +43,29 @@ class SubContextParams:
     prefix_eol: int = 0
     suffix_eol: int = 0
     target: Target = DEFAULT_TARGET
+
+
+class ListMarker:
+    def __init__(self, marker: Union[str, int]):
+        self._marker = marker
+
+    def inc(self):
+        if isinstance(self._marker, int):
+            self._marker += 1
+
+    def __repr__(self):
+        if isinstance(self._marker, int):
+            return f"{self._marker}. "
+        return self._marker
+
+
+@dataclass(frozen=True)
+class ContextStatus:
+    escape_text: bool = True  # Whether to escape characters
+    section_level: int = 0  # Current section heading level
+    list_marker: Optional[ListMarker] = None  # Current list marker
+    desc_type: Optional[str] = None  # Current descriptor type
+    default_ref_internal: bool = False  # Current default for internal reference
 
 
 class SubContext:
@@ -242,10 +265,13 @@ class IndentContext(SubContext):
         prefix,
         only_first=False,
         support_multi_line_break=False,
+        empty=False,
         params=SubContextParams(1, 1),
     ):
         super().__init__(params)
         self.support_multi_line_break = support_multi_line_break
+        self.empty = empty
+        prefix = str(prefix)
         if only_first:
             self.prefix = " " * len(prefix)
             self.first_prefix = prefix
@@ -257,7 +283,7 @@ class IndentContext(SubContext):
         content = super().make()
         if self.support_multi_line_break:
             content = replace_multi_line_break(content)
-        content = textwrap.indent(content, self.prefix)
+        content = textwrap.indent(content, self.prefix, predicate=(lambda _: True) if self.empty else None)
         if self.first_prefix is None:
             return content
         return content.replace(self.prefix, self.first_prefix, 1)

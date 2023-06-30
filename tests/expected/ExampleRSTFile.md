@@ -11,11 +11,22 @@ Work with edX Documentation Source Files.
 
 This file covers the following topics.
 
+> ##### Table of content
+> 
+> * [Heading Levels](#heading-levels)
+> * [Paragraph Text and Commented Text](#paragraph-text-and-commented-text)
+> * [Ordered and Unordered Lists](#ordered-and-unordered-lists)
+> * [Conditional Text](#conditional-text)
+> * [Notes and Warnings](#notes-and-warnings)
+> * [Cross-References](#cross-references)
+> * [Image References](#image-references)
+> * [Tables](#tables)
+> * [Code Formatting](#code-formatting)
+> * [Links](#links)
+
 ## Heading Levels
 
-# Heading 1
-
-## Heading 2
+The top of the document is heading 1, and this section is heading 2. The following are the rest of the headers.
 
 ### Heading 3
 
@@ -52,6 +63,8 @@ accent characters is rendered in monospace font.
 In English source files, look for comments addressed to translators from writers.
 
 `.. Translators:  In this code example, do not translate such and such.`
+
+<!-- Translators:  In this code example, do not translate such and such. -->
 
 ## Ordered and Unordered Lists
 

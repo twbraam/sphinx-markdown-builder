@@ -3,9 +3,6 @@
 * [Example .rst File](ExampleRSTFile.md)
 
   * [Heading Levels](ExampleRSTFile.md#heading-levels)
-* [Heading 1](ExampleRSTFile.md#heading-1)
-
-  * [Heading 2](ExampleRSTFile.md#heading-2)
 
     * [Heading 3](ExampleRSTFile.md#heading-3)
 

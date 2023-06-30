@@ -14,7 +14,7 @@ Explanations and more context for each type of element are provided in
 
 This file covers the following topics.
 
-.. contents::
+.. contents:: Table of content
   :local:
   :depth: 1
 
@@ -22,14 +22,7 @@ This file covers the following topics.
 Heading Levels
 ***************
 
-
-#############
-Heading 1
-#############
-
-*************
-Heading 2
-*************
+The top of the document is heading 1, and this section is heading 2. The following are the rest of the headers.
 
 ===========
 Heading 3
@@ -72,6 +65,9 @@ accent characters is rendered in monospace font.
 In English source files, look for comments addressed to translators from writers.
 
 ``.. Translators:  In this code example, do not translate such and such.``
+
+
+.. Translators:  In this code example, do not translate such and such.
 
 
 ***************************************

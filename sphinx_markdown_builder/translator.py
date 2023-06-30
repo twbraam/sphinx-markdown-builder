@@ -22,6 +22,7 @@ https://github.com/sphinx-doc/sphinx/blob/master/sphinx/writers/html5.py
 Base HTML5 translator (example):
 https://github.com/docutils/docutils/blob/master/docutils/docutils/writers/html5_polyglot/__init__.py
 """
+import dataclasses
 import posixpath
 import re
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Union
@@ -31,9 +32,11 @@ from sphinx.util.docutils import SphinxTranslator
 
 from sphinx_markdown_builder.contexts import (
     CommaSeparatedContext,
+    ContextStatus,
     DocInfoContext,
     IndentContext,
     ItalicContext,
+    ListMarker,
     MetaContext,
     PushContext,
     StrongContext,
@@ -114,7 +117,7 @@ def pushing_context(method):
     return method
 
 
-class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
+class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-methods
     def __init__(self, document: nodes.document, builder: "MarkdownBuilder"):
         super().__init__(document, builder)
         self.builder: "MarkdownBuilder" = builder
@@ -126,18 +129,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         # FIFO Sub context allow us to handle unique cases when post-processing is required
         self._ctx_queue: List[SubContext] = [SubContext()]
         self._doc_info: SubContext = SubContext()
-
-        # Current section heading level
-        self.section_level = 0
-
-        # Flag for whether to escape characters
-        self._escape_text = True
-
-        # Saves the current list type
-        self.list_context: List[Union[str, int]] = []
-
-        # Saves the current descriptor type
-        self.desc_context: List[str] = []
+        self._status_queue: List[ContextStatus] = [ContextStatus()]
 
         if self.config.markdown_docinfo:
             self._add_doc_info_from_config()
@@ -153,6 +145,34 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     @property
     def ctx(self) -> SubContext:
         return self._ctx_queue[-1]
+
+    def _push_context(self, ctx: SubContext):
+        self._ctx_queue.append(ctx)
+
+    def _pop_context(self, _node=None, count=1):
+        for _ in range(count):
+            if len(self._ctx_queue) <= 1:
+                break
+
+            last_ctx = self._ctx_queue.pop()
+            ctx = self.ctx if last_ctx.params.target == "body" else self._doc_info
+            ctx.add(last_ctx.make(), last_ctx.params.prefix_eol, last_ctx.params.suffix_eol)
+
+    def _push_box(self, title: str):
+        self.add(f"#### {title}", prefix_eol=2)
+        self._push_context(SubContext(SubContextParams(1, 2)))
+
+    @property
+    def status(self) -> ContextStatus:
+        return self._status_queue[-1]
+
+    def _push_status(self, **changes):
+        cur_status = self.status
+        self._status_queue.append(dataclasses.replace(cur_status, **changes))
+
+    def _pop_status(self, _node=None, count=1):
+        count = min(len(self._status_queue) - 1, count)
+        self._status_queue = self._status_queue[:-count]
 
     def astext(self):
         """Return the final formatted document as a string."""
@@ -172,22 +192,6 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     def ensure_eol(self, count=1):
         """Ensure the last line in current base is terminated by X new lines."""
         self.ctx.ensure_eol(count)
-
-    def _push_context(self, ctx: SubContext):
-        self._ctx_queue.append(ctx)
-
-    def _pop_context(self, _node=None, count=1):
-        for _ in range(count):
-            if len(self._ctx_queue) <= 1:
-                break
-
-            last_ctx = self._ctx_queue.pop()
-            ctx = self.ctx if last_ctx.params.target == "body" else self._doc_info
-            ctx.add(last_ctx.make(), last_ctx.params.prefix_eol, last_ctx.params.suffix_eol)
-
-    def _push_box(self, title: str):
-        self.add(f"#### {title}", prefix_eol=2)
-        self._push_context(SubContext(SubContextParams(1, 2)))
 
     def _pass(self, _node=None):
         pass
@@ -249,6 +253,14 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
         return None
 
+    def unknown_visit(self, node):
+        """Warn once per instance for unsupported nodes."""
+        node_type = node.__class__.__name__
+        if node_type not in self._warned:
+            super().unknown_visit(node)
+            self._warned.add(node_type)
+        raise nodes.SkipNode
+
     ################################################################################
     # visit/depart handlers
     ################################################################################
@@ -283,17 +295,17 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     # noinspection PyPep8Naming
     def visit_Text(self, node):  # pylint: disable=invalid-name
         text = node.astext().replace("\r", "")
-        if self._escape_text:
+        if self.status.escape_text:
             text = escape_markdown_chars(text)
         self.add(text)
 
     def visit_comment(self, _node):
-        self._escape_text = False
+        self._push_status(escape_text=False)
         self._push_context(WrappedContext("<!-- ", " -->", params=SubContextParams(1)))
 
     def depart_comment(self, _node):
         self._pop_context()
-        self._escape_text = True
+        self._pop_status()
 
     @pushing_context
     def visit_paragraph(self, _node):
@@ -340,56 +352,46 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
 
     def visit_math_block(self, _node):
         """docutils math block"""
-        self._escape_text = False
-        self.ensure_eol()
-        self.add("$$")
-        self.ensure_eol()
+        self._push_status(escape_text=False)
+        self.add("$$", prefix_eol=1, suffix_eol=1)
 
     def depart_math_block(self, _node):
         """docutils math block"""
-        self._escape_text = True
-        self.ensure_eol()
-        self.add("$$")
-        self.ensure_eol(2)
+        self.add("$$", prefix_eol=1, suffix_eol=2)
+        self._pop_status()
 
     def visit_math(self, _node):
         """docutils math node"""
-        self._escape_text = False
+        self._push_status(escape_text=False)
         self.add("$")
 
     def depart_math(self, _node):
         """docutils math node"""
-        self._escape_text = True
         self.add("$")
+        self._pop_status()
 
     def visit_literal(self, _node):
-        self._escape_text = False
+        self._push_status(escape_text=False)
         self.add("`")
 
     def depart_literal(self, _node):
         self.add("`")
-        self._escape_text = True
+        self._pop_status()
 
     def visit_literal_block(self, node):
-        self._escape_text = False
+        self._push_status(escape_text=False)
         code_type = node["classes"][1] if "code" in node["classes"] else ""
         if "language" in node:
             code_type = node["language"]
-        self.ensure_eol()
-        self.add(f"```{code_type}")
-        self.ensure_eol()
+        self.add(f"```{code_type}", prefix_eol=1, suffix_eol=1)
 
     def depart_literal_block(self, _node):
-        self._escape_text = True
-        self.ensure_eol()
-        self.add("```")
-        self.ensure_eol(2)
+        self.add("```", prefix_eol=1, suffix_eol=2)
+        self._pop_status()
 
     def visit_doctest_block(self, _node):
-        self._escape_text = False
-        self.ensure_eol()
-        self.add("```pycon")
-        self.ensure_eol()
+        self._push_status(escape_text=False)
+        self.add("```pycon", prefix_eol=1, suffix_eol=1)
 
     depart_doctest_block = depart_literal_block
 
@@ -398,9 +400,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         self._push_context(IndentContext("> "))
 
     def visit_problematic(self, node):
-        self.ensure_eol(2)
-        self.add(f"```\n{node.astext()}\n```")
-        self.ensure_eol(2)
+        self.add(f"```\n{node.astext()}\n```", prefix_eol=2, suffix_eol=2)
         raise nodes.SkipNode
 
     def visit_section(self, node):
@@ -409,14 +409,14 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
             for anchor in node.get("ids", []):
                 self._add_anchor(anchor)
 
-        self.section_level += 1
+        self._push_status(section_level=self.status.section_level + 1)
 
     def depart_section(self, _node):
-        self.section_level -= 1
+        self._pop_status()
 
     @pushing_context
     def visit_title(self, _node):
-        self._push_context(TitleContext(self.section_level))
+        self._push_context(TitleContext(self.status.section_level))
 
     @pushing_context
     def visit_subtitle(self, _node):
@@ -424,7 +424,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         Docutils does not promote subtitles, so this might never be called.
         However, we keep it here in case some future version will change this behaviour.
         """
-        self._push_context(TitleContext(self.section_level + 1))  # pragma: no cover
+        self._push_context(TitleContext(self.status.section_level + 1))  # pragma: no cover
 
     @pushing_context
     def visit_rubric(self, _node):
@@ -456,7 +456,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         uri = node.get("refuri", "")
 
         # Do not modify external URL in any way
-        if not node.get("internal", False):
+        if not node.get("internal", self.status.default_ref_internal):
             return uri
 
         uri = self._adjust_url(uri)
@@ -490,13 +490,13 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
             return
         self._add_anchor(ref_id)
 
-    def unknown_visit(self, node):
-        """Warn once per instance for unsupported nodes."""
-        node_type = node.__class__.__name__
-        if node_type not in self._warned:
-            self.document.reporter.warning("The " + node_type + " element not yet supported in Markdown.")
-            self._warned.add(node_type)
-        raise nodes.SkipNode
+    def visit_topic(self, _node):
+        self._push_status(default_ref_internal=True, section_level=5)
+        self._push_context(IndentContext("> ", empty=True))
+
+    def depart_topic(self, _node):
+        self._pop_status()
+        self._pop_context()
 
     ################################################################################
     # lists
@@ -510,25 +510,22 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
         self.ensure_eol()
         if isinstance(marker, str) and marker[-1] != " ":
             marker += " "
-        self.list_context.append(marker)
+        self._push_status(list_marker=ListMarker(marker))
 
     def _end_list(self, _node=None):
-        self.list_context.pop()
+        self._pop_status()
         # We need two line breaks to make sure the next paragraph will not merge into the list
         self.ensure_eol(2)
 
     def _start_list_item(self, _node=None):
-        marker = self.list_context[-1]
-        if isinstance(marker, int):
-            marker = f"{marker}. "
-            self.list_context[-1] += 1
-        # Make sure the list item prefix starts at a new line
+        marker = self.status.list_marker
+        marker.inc()
         self._push_context(IndentContext(marker, only_first=True, params=SubContextParams(1, 1)))
 
     _end_list_item = _pop_context
 
     def visit_enumerated_list(self, _node):
-        self._start_list(1)
+        self._start_list(0)
 
     depart_enumerated_list = _end_list
 
@@ -556,10 +553,10 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-instance
     ################################################################################
 
     def visit_desc(self, node):
-        self.desc_context.append(node.attributes.get("desctype", ""))
+        self._push_status(desc_type=node.attributes.get("desctype", ""))
 
     def depart_desc(self, _node):
-        self.desc_context.pop()
+        self._pop_status()
 
     @pushing_context
     def visit_desc_signature(self, node):
