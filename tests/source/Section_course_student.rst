@@ -1,7 +1,5 @@
 .. Taken from https://github.com/openedx/edx-documentation/blob/67136d0c8f77592ca542992df167a57b6ed82156/en_us/shared/student_progress/Section_course_student.rst?plain=1
 
-.. _Using the Learner Engagement Report:
-
 *************************************
 Using the Learner Engagement Report
 *************************************
@@ -107,8 +105,6 @@ The learner engagement report .csv files contain the following columns.
    * - URL of Last Subsection Viewed
      - The URL of the last subsection the learner visited.
 
-
-.. _Download the Learner Engagement Report:
 
 ===================================================
 Download the Learner Engagement Report

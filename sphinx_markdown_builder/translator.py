@@ -482,7 +482,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
         content = f'<a id="{escape_html_quote(anchor)}"></a>'
         # Prevent adding the same anchor twice in the same context
         if content not in self.ctx.content:
-            self.add(content, prefix_eol=1, suffix_eol=1)
+            self.add(content, prefix_eol=2, suffix_eol=1)
 
     def visit_target(self, node):
         ref_id = node.get("refid", None)

@@ -31,7 +31,6 @@
       * [Cross-References Using the Anchor Only](ExampleRSTFile.md#cross-references-using-the-anchor-only)
       * [Cross-References Using Specified Link Text](ExampleRSTFile.md#cross-references-using-specified-link-text)
     * [Cross-References to Locations in Different edX Documents](ExampleRSTFile.md#cross-references-to-locations-in-different-edx-documents)
-    * [Cross-References to JIRA](ExampleRSTFile.md#cross-references-to-jira)
     * [Cross-References to External Web Pages](ExampleRSTFile.md#cross-references-to-external-web-pages)
   * [Image References](ExampleRSTFile.md#image-references)
   * [Tables](ExampleRSTFile.md#tables)

@@ -65,3 +65,13 @@ def test_unknown_visit(caplog):
     assert sum("unknown node" in rec.message for rec in caplog.records) == len(test_nodes)
     for node in test_nodes:
         assert sum(node.__class__.__name__ in rec.message for rec in caplog.records) == 1
+
+
+def test_problematic():
+    mt = make_mock()
+    node = docutils.nodes.problematic(text="text")
+    mt.add("prefix")
+    with pytest.raises(docutils.nodes.SkipNode):
+        mt.dispatch_visit(node)
+    mt.add("suffix")
+    assert mt.astext() == "prefix\n\n```\ntext\n```\n\nsuffix\n"

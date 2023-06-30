@@ -1,4 +1,5 @@
 <!-- Taken form https://github.com/openedx/edx-documentation/blob/master/en_us/edx_style_guide/source/ExampleRSTFile.rst -->
+
 <a id="anchor-for-examplerstfile"></a>
 
 # Example .rst File
@@ -7,7 +8,7 @@ If you work with edX documentation source files, you might find this file
 helpful as a reference. This file contains examples of .rst formatting.
 
 Explanations and more context for each type of element are provided in
-Work with edX Documentation Source Files.
+“Work with edX Documentation Source Files”.
 
 This file covers the following topics.
 
@@ -314,7 +315,9 @@ you can create a link in *Building and Running an edX Course* to a topic in the
 document that you want to link to and the anchor text for the section you want.
 The cross-reference uses the following syntax.
 
-intersphinx_map_ID:Anchor Name
+```default
+:ref:`intersphinx_map_ID:Anchor Name`
+```
 
 For example:
 
@@ -346,24 +349,7 @@ The following intersphinx map IDs are the most frequently used.
 | `partnerreleasenotes` | Partner release notes                                        |
 | `openreleasenotes`    | Open edX release notes                                       |
 
-### Cross-References to JIRA
-
-For cross-references to JIRA tickets, use the `:jira:`PROJECT-ticketnumber``
-syntax, as in the following example.
-
-For more information, see 
-
-```
-:jira:`DOC-2316`
-```
-
-.
-
-Note that `jira` replaces `ref` for these links.
-
-Readers will see the following text, and “DOC-2316” will be an active link.
-
-`For more information, see DOC-2316.`
+<a id="anchor-for-cross-reference"></a>
 
 ### Cross-References to External Web Pages
 
@@ -417,6 +403,10 @@ The edX engineering wiki Release Pages provide access to detailed
 information about every change made to the edx-platform GitHub
 repository.
 ```
+
+The edX engineering wiki [Release Pages](https://openedx.atlassian.net/wiki/pages/viewpage.action?pageId=12550314) provide access to detailed
+information about every change made to the edx-platform GitHub
+repository.
 
 ## Image References
 
