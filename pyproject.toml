@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sphinx-markdown-builder"
 version = "0.6.1"
-description = "Sphinx builder that generates markdown files from reStructuredText."
+description = "A Sphinx extension to add markdown generation support."
 readme = "README.md"
 authors = [{ name = "Liran Funaro", email = "liran.funaro@gmail.com" }]
 license = { text = "MIT" }
@@ -18,7 +18,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Software Development :: Libraries :: Python Modules"
 ]
-keywords = ["sphinx", "markdown", "docs", "documentation", "builder"]
+keywords = ["sphinx", "sphinx-extention", "markdown", "docs", "documentation", "builder"]
 dependencies = ["sphinx>=2.2.0", "tabulate", "docutils"]
 requires-python = ">=3.7"
 
@@ -60,6 +60,10 @@ push = false
 "tests/source/conf.py" = [
     "^version = \"{version}\"$",
     "Copyright (c) 2023-YYYY, Liran Funaro.",
+]
+"tests/expected/overrides-auto-summery.md" = [
+    "<meta name=\"version\" content=\"{version}\"/>",
+    "<meta name=\"copyright\" content=\"Copyright (c) 2023-YYYY, Liran Funaro.\"/>",
 ]
 
 [tool.black]
