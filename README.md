@@ -7,7 +7,7 @@ A Sphinx extension to add markdown generation support.
 ## Install
 
 ```sh
-pip3 install sphinx-markdown-builder==0.6.0
+pip3 install sphinx-markdown-builder==0.6.1
 ```
 
 ## Usage
