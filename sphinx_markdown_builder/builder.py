@@ -1,5 +1,5 @@
 """
-docutils XML to markdown translator.
+Custom docutils builder for markdown.
 """
 import os
 from contextlib import contextmanager

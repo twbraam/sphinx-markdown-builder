@@ -1,5 +1,5 @@
 """
-Context handlers.
+Custom context handlers for markdown.
 """
 import re
 import sys

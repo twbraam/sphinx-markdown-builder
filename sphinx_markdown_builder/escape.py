@@ -1,5 +1,5 @@
 """
-Escaping text for markdown.
+Escaping text for markdown and html.
 
 Characters that should be escaped in Markdown:
 ----------------------------------------------

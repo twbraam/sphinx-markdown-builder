@@ -1,5 +1,5 @@
 """
-docutils XML to markdown translator.
+Custom docutils translator for markdown.
 
 See Also
 ========

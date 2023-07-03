@@ -1,5 +1,5 @@
 """
-docutils XML to markdown sphinx extension.
+A Sphinx extension to add markdown generation support.
 """
 from sphinx_markdown_builder.builder import MarkdownBuilder
 

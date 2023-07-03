@@ -1,5 +1,5 @@
 """
-docutils XML to markdown writer.
+Custom docutils writer for markdown.
 """
 from docutils import frontend, writers
 
