@@ -1,21 +1,14 @@
 # Main Test File
 
 * [Example .rst File](ExampleRSTFile.md)
-
   * [Heading Levels](ExampleRSTFile.md#heading-levels)
-
     * [Heading 3](ExampleRSTFile.md#heading-3)
-
       * [Heading 4](ExampleRSTFile.md#heading-4)
-
         * [Heading 5](ExampleRSTFile.md#heading-5)
-
           * [Heading 6](ExampleRSTFile.md#heading-6)
   * [Paragraph Text and Commented Text](ExampleRSTFile.md#paragraph-text-and-commented-text)
   * [Ordered and Unordered Lists](ExampleRSTFile.md#ordered-and-unordered-lists)
-
     * [Nested Lists or Content](ExampleRSTFile.md#nested-lists-or-content)
-
       * [Unordered List inside Ordered List](ExampleRSTFile.md#unordered-list-inside-ordered-list)
       * [Ordered List inside Unordered List](ExampleRSTFile.md#ordered-list-inside-unordered-list)
       * [Unordered List inside Unordered List](ExampleRSTFile.md#unordered-list-inside-unordered-list)
@@ -24,9 +17,7 @@
   * [Conditional Text](ExampleRSTFile.md#conditional-text)
   * [Notes and Warnings](ExampleRSTFile.md#notes-and-warnings)
   * [Cross-References](ExampleRSTFile.md#cross-references)
-
     * [Cross-References to Locations in the Same Document](ExampleRSTFile.md#cross-references-to-locations-in-the-same-document)
-
       * [Keyboard Shortcuts for Notes](ExampleRSTFile.md#keyboard-shortcuts-for-notes)
       * [Cross-References Using the Anchor Only](ExampleRSTFile.md#cross-references-using-the-anchor-only)
       * [Cross-References Using Specified Link Text](ExampleRSTFile.md#cross-references-using-specified-link-text)
@@ -34,48 +25,35 @@
     * [Cross-References to External Web Pages](ExampleRSTFile.md#cross-references-to-external-web-pages)
   * [Image References](ExampleRSTFile.md#image-references)
   * [Tables](ExampleRSTFile.md#tables)
-
     * [Example of a table with an empty cell](ExampleRSTFile.md#example-of-a-table-with-an-empty-cell)
     * [Example of a table with a header row](ExampleRSTFile.md#example-of-a-table-with-a-header-row)
     * [Example of a table with a boldface first column](ExampleRSTFile.md#example-of-a-table-with-a-boldface-first-column)
     * [Example of a table with a cell that includes an unordered list](ExampleRSTFile.md#example-of-a-table-with-a-cell-that-includes-an-unordered-list)
   * [Code Formatting](ExampleRSTFile.md#code-formatting)
-
     * [Inline code](ExampleRSTFile.md#inline-code)
     * [Code blocks](ExampleRSTFile.md#code-blocks)
   * [Links](ExampleRSTFile.md#links)
 * [Using the Learner Engagement Report](Section_course_student.md)
-
   * [Understanding the Learner Engagement Report](Section_course_student.md#understanding-the-learner-engagement-report)
-
     * [Reported Problem Types](Section_course_student.md#reported-problem-types)
     * [Report Columns](Section_course_student.md#report-columns)
   * [Download the Learner Engagement Report](Section_course_student.md#download-the-learner-engagement-report)
 * [Links](links.md)
 * [Welcome to Sphinx-Markdown-Builder TocTree Test’s documentation!](auto-summery.md)
-
   * [Documentation](auto-summery.md#documentation)
-
     * [my_module](library/my_module.md)
-
       * [my_module.module_class](library/my_module.module_class.md)
-
         * [`default_var`](library/my_module.module_class.md#my_module.module_class.default_var)
         * [`ModuleClass`](library/my_module.module_class.md#my_module.module_class.ModuleClass)
-
           * [`ModuleClass.function()`](library/my_module.module_class.md#my_module.module_class.ModuleClass.function)
       * [my_module.submodule](library/my_module.submodule.md)
-
         * [my_module.submodule.my_class](library/my_module.submodule.my_class.md)
-
           * [`SubmoduleClass`](library/my_module.submodule.my_class.md#my_module.submodule.my_class.SubmoduleClass)
-
             * [`SubmoduleClass.function()`](library/my_module.submodule.my_class.md#my_module.submodule.my_class.SubmoduleClass.function)
       * [`deprecated_function()`](library/my_module.md#my_module.deprecated_function)
 * [Indices and tables](auto-summery.md#indices-and-tables)
 * [Math Example](blocks.md)
 * [Code Example](blocks.md#code-example)
 * [Line Block](blocks.md#line-block)
-
   * [Other text](blocks.md#other-text)
 * [Test Image With Target](image-target.md)

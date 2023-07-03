@@ -17,7 +17,6 @@ previous day’s activity. On Mondays, an additional report is generated to
 summarize activity during the previous week (Monday through Sunday).
 
 > * [Understanding the Learner Engagement Report](#understanding-the-learner-engagement-report)
-> 
 >   * [Reported Problem Types](#reported-problem-types)
 >   * [Report Columns](#report-columns)
 > * [Download the Learner Engagement Report](#download-the-learner-engagement-report)

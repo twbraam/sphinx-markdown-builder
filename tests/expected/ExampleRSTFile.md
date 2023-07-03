@@ -100,7 +100,6 @@ text in the ordered list.
 1. Review your entry to verify that the key is accurate and that it is
    surrounded by quotation marks. If there is a list of keys, they must be
    comma separated.
-
    * In this example, the key for the Annotation Problem tool is the only
      value in the list.
    * In this example, the key for the Annotation Problem tool is added at
@@ -118,7 +117,6 @@ the text in the unordered list.
 * Review your entry to verify that the key is accurate and that it is
   surrounded by quotation marks. If there is a list of keys, they must be comma
   separated.
-
   1. In this example, the key for the Annotation Problem tool is the only
      value in the list.
   2. In this example, the key for the Annotation Problem tool is added at the
@@ -138,7 +136,6 @@ be flush with the text in the unordered list.
 * Review your entry to verify that the key is accurate and that it is
   surrounded by quotation marks. If there is a list of keys, they must be
   comma separated.
-
   1. In this example, the key for the Annotation Problem tool is the only
      value in the list.
   2. In this example, the key for the Annotation Problem tool is added at the
@@ -157,7 +154,6 @@ uses letters.
 1. Review your entry to verify that the key is accurate and that it is
    surrounded by quotation marks. If there is a list of keys, they must be
    comma separated.
-
    1. In this example, the key for the Annotation Problem tool is the only
       value in the list.
    2. In this example, the key for the Annotation Problem tool is added at
@@ -176,7 +172,6 @@ for ordered lists and two spaces for unordered lists.
 
 1. In the `lms.yml` and `studio.yml` files, set the value of
    `CERTIFICATES_HTML_VIEW` within the `FEATURES` object  to `true`.
-
    ```bash
    "FEATURES": {
        ...
@@ -368,7 +363,6 @@ To create an external cross-reference, follow these steps.
 1. In the paragraph where you want the cross-reference, add the text that you
    want to use for the link, formatted as follows (where “Release Pages” is the
    link text). This creates an anchor out of that text.
-
    ```default
    The edX engineering wiki `Release Pages`_ provide access to detailed
    information about every change made to the edx-platform GitHub
@@ -378,7 +372,6 @@ To create an external cross-reference, follow these steps.
    for the `edx-documentation/en_us/links/links.rst` file if one does not
    already exist. These `include` directives are typically at the end of the
    file.
-
    ```default
    .. include:: ../../links/links.rst
    ```
@@ -391,7 +384,6 @@ To create an external cross-reference, follow these steps.
    the anchor text and the URL of the external website, formatted as follows.
    Make sure that the anchor text in this file matches the anchor text in the
    file that contains the cross-reference exactly, including capitalization.
-
    ```default
    .. _Release Pages: https://openedx.atlassian.net/wiki/display/ENG/Release+Pages
    ```

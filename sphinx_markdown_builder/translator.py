@@ -309,7 +309,13 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
 
     @pushing_context
     def visit_paragraph(self, _node):
-        self._push_context(SubContext(SubContextParams(2, 2)))
+        if self.status.list_marker is None:
+            params = SubContextParams(2, 2)
+        else:
+            # Full paragraph spacing inside a list might trigger redundant spacing for some markdown compilers.
+            # So we will add double EOL after the paragraph only if the next element requires it (e.g., code block).
+            params = SubContextParams(2, 1)
+        self._push_context(SubContext(params))
 
     visit_compact_paragraph = visit_paragraph
 
