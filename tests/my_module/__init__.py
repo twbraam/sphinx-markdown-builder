@@ -11,3 +11,21 @@ def deprecated_function():
        Use :func:`other` instead.
     """
     pass
+
+
+def func1(param1: int):
+    """This is a function with a single parameter.
+    Thanks to github.com/remiconnesson.
+
+    :param param1: This is a single parameter.
+    """
+    pass
+
+
+def func2(param1: int, param2: int):
+    """This is a function with two parameters.
+
+    :param param1: This is the first parameter.
+    :param param2: This is the second parameter.
+    """
+    pass

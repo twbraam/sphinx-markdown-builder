@@ -67,7 +67,7 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
     desc_annotation=ItalicContext,
     literal_strong=StrongContext,
     literal_emphasis=ItalicContext,
-    field_name=StrongContext,  # e.g 'returns', 'parameters'
+    field_name=PushContext(WrappedContext, "**", ":**"),  # e.g 'returns', 'parameters'
     # Doc info elements
     docinfo=DocInfoContext,
     docinfo_item=DocInfoContext,

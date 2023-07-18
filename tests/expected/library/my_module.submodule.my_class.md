@@ -8,7 +8,7 @@ A submodule class file.
 
 A class inside a submodule.
 
-* **Parameters**
+* **Parameters:**
   **var** ([*str*](https://docs.python.org/3/library/stdtypes.html#str)) – Does nothing
 
 #### function(param1, param2)
@@ -17,10 +17,10 @@ Do nothing
 
 This is a dummy function that does not do anything.
 
-* **Parameters**
+* **Parameters:**
   * **param1** ([*int*](https://docs.python.org/3/library/functions.html#int)) – Does nothing
   * **param2** ([*str*](https://docs.python.org/3/library/stdtypes.html#str)) – Does nothing as well
-* **Returns**
+* **Returns:**
   Nothing.
-* **Return type**
+* **Return type:**
   None
