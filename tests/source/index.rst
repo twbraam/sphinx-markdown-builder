@@ -10,3 +10,4 @@ Main Test File
    auto-summery.rst
    blocks.rst
    image-target.rst
+   empty.rst

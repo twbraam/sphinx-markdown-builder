@@ -253,7 +253,8 @@ class TableContext(SubContext):
 
     def make(self):
         content = [*self.headers, *self.body]
-        assert len(content) > 0, "Empty table"
+        if len(content) == 0:
+            return ""
         headers = self.make_row(content[0])
         body = list(map(self.make_row, content[1:]))
         return tabulate(body, headers=headers, tablefmt="github")
