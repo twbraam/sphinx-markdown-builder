@@ -3,7 +3,7 @@ A Sphinx extension to add markdown generation support.
 """
 from sphinx_markdown_builder.builder import MarkdownBuilder
 
-__version__ = "0.6.3"
+__version__ = "0.6.4"
 __docformat__ = "reStructuredText"
 
 
