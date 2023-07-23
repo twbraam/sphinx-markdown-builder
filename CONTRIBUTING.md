@@ -41,6 +41,38 @@ Additionally, you don't need to add entries to the [CHANGELOG.md](CHANGELOG.md) 
 responsibility.
 
 
+## Contributing Tests
+
+Testing is done with input/output examples.
+Since this project is in its early stages, we lack meaningful examples.
+We encourage you to suggest improvements, fixes, and additions to these tests by opening pull requests.
+
+To contribute to this effort, please check out the following folders:
+* [tests/source](/tests/source): input RST files and `conf.py`
+* [tests/my_module](/tests/my_module): input code to produce documentation with the `sphinx.ext.autodoc` extension
+* [tests/expected](/tests/expected): the desired output if applied to the input sources and code
+
+You are encouraged to suggest changes to these files to address any discrepancies.
+
+Important
+: For resolving discrepancies, don't worry about passing CI tests.
+Upon accepting your PR, developers will make additional effort to resolve these discrepancies and make the tests pass.
+
+The following command tests that the generated output matches existing results:
+```bash
+make test
+```
+
+If it fails, it will show the difference between generated and expected output.
+
+To better view the difference after running `make test`, you can use the following command:
+```bash
+make diff DIFFTOOL=meld
+```
+Where you can replace 'DIFFTOOL=meld' with any diff tool you have on your local machine.
+The default is `meld`.
+
+
 ## Reading List
 
 * [GitHub Flow](http://scottchacon.com/2011/08/31/github-flow.html)

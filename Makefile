@@ -2,6 +2,7 @@
 # from the environment for the first two.
 SPHINX_OPTS      ?=
 SPHINX_BUILD     ?= sphinx-build
+DIFFTOOL         ?= meld
 TESTS_DIR         = tests
 SOURCE_DIR        = $(TESTS_DIR)/source
 BUILD_DIR         = $(TESTS_DIR)/docs-build
@@ -34,12 +35,13 @@ test:
 			-D markdown_http_base="https://localhost" -D markdown_uri_doc_suffix=".html" \
 			-D markdown_docinfo=True -D markdown_anchor_sections=True -D markdown_anchor_signatures=True
 
-	cp "$(BUILD_DIR)/overrides/markdown/auto-summery.md" "$(BUILD_DIR)/markdown/overrides-auto-summery.md"
-	diff --recursive "$(BUILD_DIR)/markdown" "$(EXPECTED_DIR)"
+	@cp "$(BUILD_DIR)/overrides/markdown/auto-summery.md" "$(BUILD_DIR)/markdown/overrides-auto-summery.md"
+	@diff --recursive --color=always --side-by-side --text --suppress-common-lines \
+			"$(BUILD_DIR)/markdown" "$(EXPECTED_DIR)"
 
 
-meld:
-	meld "$(BUILD_DIR)/markdown" "$(EXPECTED_DIR)" &
+diff:
+	$(DIFFTOOL) "$(BUILD_DIR)/markdown" "$(EXPECTED_DIR)" &
 
 
 release:

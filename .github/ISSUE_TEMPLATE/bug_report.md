@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: Create a report to improve this package
-title: ''
+title: '[BUG]'
 labels: bug
 assignees: liran-funaro
 
@@ -12,15 +12,15 @@ A clear and concise description of what the bug is.
 
 **To Reproduce**
 Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
+1. Clone '...'
+2. Install packages '....'
+3. Run '....'
 4. See error
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
-**Enviroment (please complete the following information):**
+**Environment (please complete the following information):**
  - OS: [e.g. iOS]
  - Version [e.g. 22]
 
