@@ -198,15 +198,16 @@ class TableContext(SubContext):
         super().__init__(params)
         self.body: List[List[List[str]]] = []
         self.headers: List[List[List[str]]] = []
-        self._active_output: Optional[List[List[List[str]]]] = None
 
         self.is_row = False
         self.is_entry = False
+        self.is_header = False
 
     @property
     def active_output(self) -> List[List[List[str]]]:
-        assert self._active_output is not None
-        return self._active_output
+        if self.is_header:
+            return self.headers
+        return self.body
 
     @property
     def content(self):
@@ -214,20 +215,18 @@ class TableContext(SubContext):
         return self.active_output[-1][-1]
 
     def enter_head(self):
-        assert self._active_output is None
-        self._active_output = self.headers
+        assert not self.is_header
+        self.is_header = True
 
     def exit_head(self):
-        assert self._active_output is self.headers
-        self._active_output = None
+        assert self.is_header
+        self.is_header = False
 
     def enter_body(self):
-        assert self._active_output is None
-        self._active_output = self.body
+        assert not self.is_header
 
     def exit_body(self):
-        assert self._active_output is self.body
-        self._active_output = None
+        assert not self.is_header
 
     def enter_row(self):
         self.active_output.append([])
