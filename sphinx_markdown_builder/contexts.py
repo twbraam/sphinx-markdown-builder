@@ -202,11 +202,13 @@ class TableContext(SubContext):
         self.is_row = False
         self.is_entry = False
         self.is_header = False
+        self.is_body = False
 
     @property
     def active_output(self) -> List[List[List[str]]]:
         if self.is_header:
             return self.headers
+        assert self.is_body
         return self.body
 
     @property
@@ -215,18 +217,20 @@ class TableContext(SubContext):
         return self.active_output[-1][-1]
 
     def enter_head(self):
-        assert not self.is_header
+        assert not self.is_header and not self.is_body
         self.is_header = True
 
     def exit_head(self):
-        assert self.is_header
+        assert self.is_header and not self.is_body
         self.is_header = False
 
     def enter_body(self):
-        assert not self.is_header
+        assert not self.is_header and not self.is_body
+        self.is_body = True
 
     def exit_body(self):
-        assert not self.is_header
+        assert self.is_body and not self.is_header
+        self.is_body = False
 
     def enter_row(self):
         self.active_output.append([])
