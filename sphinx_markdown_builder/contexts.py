@@ -198,8 +198,8 @@ class TableContext(SubContext):
         super().__init__(params)
         self.body: List[List[List[str]]] = []
         self.headers: List[List[List[str]]] = []
+        self.internal_context = SubContext()
 
-        self.is_row = False
         self.is_entry = False
         self.is_header = False
         self.is_body = False
@@ -213,8 +213,9 @@ class TableContext(SubContext):
 
     @property
     def content(self):
-        assert self.is_entry
-        return self.active_output[-1][-1]
+        if self.is_entry:
+            return self.active_output[-1][-1]
+        return self.internal_context.content
 
     def enter_head(self):
         assert not self.is_header and not self.is_body
@@ -234,14 +235,11 @@ class TableContext(SubContext):
 
     def enter_row(self):
         self.active_output.append([])
-        self.is_row = True
 
     def exit_row(self):
-        assert self.is_row
-        self.is_row = False
+        pass
 
     def enter_entry(self):
-        assert self.is_row
         self.is_entry = True
         self.active_output[-1].append([])
         self.ensure_eol_count = 0
@@ -255,12 +253,17 @@ class TableContext(SubContext):
         return ["".join(entries).replace("\n", "<br/>") for entries in row]
 
     def make(self):
+        ctx = SubContext()
+        prefix = self.internal_context.make()
+        if prefix:
+            ctx.add(prefix)
+
         content = [*self.headers, *self.body]
-        if len(content) == 0:
-            return ""
-        headers = self.make_row(content[0])
-        body = list(map(self.make_row, content[1:]))
-        return tabulate(body, headers=headers, tablefmt="github")
+        if len(content) > 0:
+            headers = self.make_row(content[0])
+            body = list(map(self.make_row, content[1:]))
+            ctx.add(tabulate(body, headers=headers, tablefmt="github"), prefix_eol=2)
+        return ctx.make()
 
 
 class IndentContext(SubContext):

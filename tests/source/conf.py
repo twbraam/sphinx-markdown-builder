@@ -17,6 +17,7 @@ extensions = [
     "sphinx.ext.autosummary",  # Create neat summary tables
     "sphinx.ext.intersphinx",  # Link to other project's documentation (see mapping below)
     "sphinx_markdown_builder",
+    "sphinx_needs",
 ]
 
 

@@ -11,3 +11,4 @@ Main Test File
    blocks.rst
    image-target.rst
    empty.rst
+   needtable.rst

@@ -30,6 +30,7 @@ requires-python = ">=3.7"
 [project.optional-dependencies]
 dev = [
     "bumpver", "black", "isort", "flake8", "pylint", "pip-tools", "pytest", "pytest-cov", "coveralls",
+    "sphinx-needs", "sphinxcontrib-plantuml",
 ]
 
 [project.urls]

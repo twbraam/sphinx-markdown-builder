@@ -422,7 +422,11 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
 
     @pushing_context
     def visit_title(self, _node):
-        self._push_context(TitleContext(self.status.section_level))
+        if isinstance(self.ctx, TableContext):
+            level = 4
+        else:
+            level = self.status.section_level
+        self._push_context(TitleContext(level))
 
     @pushing_context
     def visit_subtitle(self, _node):
@@ -644,7 +648,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
 
     @pushing_context
     def visit_table(self, _node):
-        self._push_context(TableContext(params=SubContextParams(1, 1)))
+        self._push_context(TableContext(params=SubContextParams(2, 1)))
 
     def visit_thead(self, _node):
         self.table_ctx.enter_head()  # workaround pylint: disable=no-member

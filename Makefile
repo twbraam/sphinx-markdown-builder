@@ -36,6 +36,7 @@ test:
 			-D markdown_docinfo=True -D markdown_anchor_sections=True -D markdown_anchor_signatures=True
 
 	@cp "$(BUILD_DIR)/overrides/markdown/auto-summery.md" "$(BUILD_DIR)/markdown/overrides-auto-summery.md"
+	@rm -r $(BUILD_DIR)/markdown/_static $(BUILD_DIR)/markdown/permalink.html
 	@diff --recursive --color=always --side-by-side --text --suppress-common-lines \
 			"$(BUILD_DIR)/markdown" "$(EXPECTED_DIR)"
 
