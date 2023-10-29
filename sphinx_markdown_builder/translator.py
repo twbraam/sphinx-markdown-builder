@@ -35,6 +35,7 @@ from sphinx_markdown_builder.contexts import (
     ContextStatus,
     DocInfoContext,
     GlossaryContext,
+    GlossaryContext,
     IndentContext,
     ItalicContext,
     ListMarker,

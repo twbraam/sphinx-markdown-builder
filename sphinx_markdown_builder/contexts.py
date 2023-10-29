@@ -422,11 +422,6 @@ class GlossaryContext(SubContext):
         for i in range(len(self.terms)):
             refname = "term-" + self.terms[i][1].replace(" ", "-")
 
-            ctx.add(
-                f'<a id="{refname}"></a>\n\n' +
-                ''.join(self.terms[i]) +
-                ''.join(self.definitions[i]),
-                prefix_eol=2
-            )
+            ctx.add(f'<a id="{refname}"></a>\n\n' + "".join(self.terms[i]) + "".join(self.definitions[i]), prefix_eol=2)
 
         return ctx.make()
