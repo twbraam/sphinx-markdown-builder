@@ -34,6 +34,7 @@ from sphinx_markdown_builder.contexts import (
     CommaSeparatedContext,
     ContextStatus,
     DocInfoContext,
+    GlossaryContext,
     IndentContext,
     ItalicContext,
     ListMarker,
@@ -673,3 +674,67 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
 
     def depart_entry(self, _node):
         self.table_ctx.exit_entry()  # workaround pylint: disable=no-member
+
+    ################################################################################
+    # glossaries
+    ################################################################################
+    # glossary
+    #   definition_list
+    #     definition_list_item
+    #       term
+    #         index entries
+    #       definition
+    #         paragraph
+    ################################################################################
+
+    @property
+    def glossary_ctx(self) -> GlossaryContext:
+        ctx = self.ctx
+        assert isinstance(ctx, GlossaryContext)
+        return ctx
+
+    @pushing_context
+    def visit_glossary(self, _node):
+        # create glossary context
+        self._push_context(GlossaryContext(params=SubContextParams(2, 1)))
+
+        # store existing visit and depart handlers
+        self.glossary_ctx.old_visit_term = self.visit_term
+        self.glossary_ctx.old_depart_term = self.depart_term
+
+        self.glossary_ctx.old_visit_definition = self.visit_definition
+        self.glossary_ctx.old_depart_definition = self.depart_definition
+
+        # overwrite (temporarily) visit and depart handlers
+        def visit_term(_ignore):
+            self.glossary_ctx.enter_term()
+            self._push_status(escape_text=False)
+            self.add("#" * (self.status.section_level + 1) + " ")
+
+        def depart_term(_ignore):
+            self.add("\n")
+            self._pop_status()
+            self.glossary_ctx.exit_term()
+
+        def visit_definition(_ignore):
+            self.glossary_ctx.enter_definition()
+
+        def depart_definition(_ignore):
+            self.glossary_ctx.exit_definition()
+
+        self.visit_term = visit_term
+        self.depart_term = depart_term
+
+        self.visit_definition = visit_definition
+        self.depart_definition = depart_definition
+
+    def depart_glossary(self, _node):
+        # restore visit and depart handlers
+        self.visit_term = self.glossary_ctx.old_visit_term
+        self.depart_term = self.glossary_ctx.old_depart_term
+
+        self.visit_definition = self.glossary_ctx.old_visit_definition
+        self.depart_definition = self.glossary_ctx.old_depart_definition
+
+        # pop glossary
+        self._pop_context()

@@ -365,3 +365,68 @@ DocInfoContext = PushContext(
     MetaContext,
     translator=lambda _node, elem: {"name": f"{elem}: "},
 )
+
+class GlossaryContext(SubContext):
+    def __init__(self, params=SubContextParams()):
+        super().__init__(params)
+        self.terms: List[List[str]] = []
+        self.definitions: List[List[str]] = []
+        self.internal_context = SubContext()
+
+        self.old_visit_term = None
+        self.old_depart_term = None
+        self.old_visit_definition = None
+        self.old_depart_definition = None
+
+        self.is_term = False
+        self.is_definition = False
+
+    @property
+    def active_output(self) -> List[List[str]]:
+        if self.is_term:
+            return self.terms
+        assert self.is_definition
+        return self.definitions
+
+    @property
+    def content(self):
+        if self.is_term or self.is_definition:
+            return self.active_output[-1]
+        return self.internal_context.content
+
+    def enter_term(self):
+        assert not self.is_term
+        self.is_term = True
+        self.terms.append([])
+
+    def exit_term(self):
+        assert self.is_term
+        self.is_term = False
+
+    def enter_definition(self):
+        assert not self.is_definition
+        self.is_definition = True
+        self.definitions.append([])
+
+    def exit_definition(self):
+        assert self.is_definition
+        self.is_definition = False
+
+    def make(self):
+        ctx = SubContext()
+        prefix = self.internal_context.make()
+        if prefix:
+            ctx.add(prefix)
+
+        assert len(self.terms) == len(self.definitions)
+        for i in range(len(self.terms)):
+            refname = "term-" + self.terms[i][1].replace(" ", "-")
+
+            ctx.add(
+                f'<a id="{refname}"></a>\n\n' +
+                ''.join(self.terms[i]) +
+                ''.join(self.definitions[i]),
+                prefix_eol=2
+            )
+
+        return ctx.make()
