@@ -366,6 +366,7 @@ DocInfoContext = PushContext(
     translator=lambda _node, elem: {"name": f"{elem}: "},
 )
 
+
 class GlossaryContext(SubContext):
     def __init__(self, params=SubContextParams()):
         super().__init__(params)
