@@ -29,7 +29,7 @@ Some random text for term 1 in glossary 2.
 <a id="term-Glossary2-Term2"></a>
 
 ### Glossary2-Term2
-Some random text for term 2 in glossary 2. Some ref for [Glossary1-Term3](#term-Glossary1-Term3).
+Some random text for term 2 in glossary 2. Some reference for [Glossary1-Term3](#term-Glossary1-Term3).
 
 
 ## Section for third glossary
