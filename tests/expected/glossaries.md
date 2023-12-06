@@ -15,7 +15,7 @@ Some random text for term 2 in glossary 1. Referencing [Glossary1-Term1](#term-G
 <a id="term-Glossary1-Term3"></a>
 
 ### Glossary1-Term3
-Some random text for term 3 in glossary 1. Referencing [Glossary3-Term1](#term-Glossary3-Term1)
+Some random text for term 3 in glossary 1. Referencing [Glossary3-Term1](#term-Glossary3-Term1).
 
 ## Section for second glossary
 

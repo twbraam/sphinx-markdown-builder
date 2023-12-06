@@ -26,7 +26,7 @@ Section for second glossary
       Some random text for term 1 in glossary 2.
 
     Glossary2-Term2
-      Some random text for term 2 in glossary 2. Some ref for :term:`Glossary1-Term3`.
+      Some random text for term 2 in glossary 2. Some reference for :term:`Glossary1-Term3`.
 
 
 Section for third glossary

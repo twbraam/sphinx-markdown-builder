@@ -369,6 +369,7 @@ DocInfoContext = PushContext(
 
 class GlossaryContext(SubContext):
     def __init__(self, params=SubContextParams()):
+        # pylint: disable=too-many-instance-attributes
         super().__init__(params)
         self.terms: List[List[str]] = []
         self.definitions: List[List[str]] = []
@@ -420,6 +421,8 @@ class GlossaryContext(SubContext):
             ctx.add(prefix)
 
         assert len(self.terms) == len(self.definitions)
+
+        # pylint: disable=consider-using-enumerate
         for i in range(len(self.terms)):
             refname = "term-" + self.terms[i][1].replace(" ", "-")
 
