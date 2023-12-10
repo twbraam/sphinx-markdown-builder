@@ -118,7 +118,7 @@ def pushing_context(method):
     return method
 
 
-class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-methods
+class MarkdownTranslator(SphinxTranslator):  # pylint: disable=R0902,R0904
     def __init__(self, document: nodes.document, builder: "MarkdownBuilder"):
         super().__init__(document, builder)
         self.builder: "MarkdownBuilder" = builder
@@ -352,7 +352,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
     ################################################################################
 
     @pushing_context
-    def visit_definition(self, _node):
+    def visit_definition(self, _node):  # pylint: disable=E0202
         self._push_context(
             IndentContext(": ", only_first=True, support_multi_line_break=True, params=SubContextParams(1, 2))
         )
@@ -695,6 +695,8 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
 
     @pushing_context
     def visit_glossary(self, _node):
+        # pylint: disable=E1101,W0201
+
         # create glossary context
         self._push_context(GlossaryContext(params=SubContextParams(2, 1)))
 
@@ -729,6 +731,8 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
         self.depart_definition = depart_definition
 
     def depart_glossary(self, _node):
+        # pylint: disable=W0201
+
         # restore visit and depart handlers
         self.visit_term = self.glossary_ctx.old_visit_term
         self.depart_term = self.glossary_ctx.old_depart_term
