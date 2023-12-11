@@ -107,14 +107,23 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
 )
 
 
-def pushing_context(method):
-    """Marks method as pushing context"""
+def _assign_visit_method(method, variable: str):
     match = VISIT_DEPART_PATTERN.fullmatch(method.__name__)
     assert match is not None
     state, _ = match.groups()
     assert state == "visit"
-    setattr(method, "__pushing_context__", True)
+    setattr(method, variable, True)
     return method
+
+
+def pushing_context(method):
+    """Marks method as pushing context"""
+    return _assign_visit_method(method, "__pushing_context__")
+
+
+def pushing_status(method):
+    """Marks method as status context"""
+    return _assign_visit_method(method, "__pushing_status__")
 
 
 class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-methods
@@ -174,6 +183,10 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
         count = min(len(self._status_queue) - 1, count)
         self._status_queue = self._status_queue[:-count]
 
+    def _pop_context_and_status(self, node=None):
+        self._pop_context(node)
+        self._pop_status(node)
+
     def astext(self):
         """Return the final formatted document as a string."""
         self._pop_context(count=2**31)
@@ -223,13 +236,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
                 return predefined_method
             raise ex
 
-    def _find_predefined_method(self, item) -> Optional[Callable]:  # pylint: disable=too-many-return-statements
-        match = VISIT_DEPART_PATTERN.fullmatch(item)
-        if match is None:
-            # We only care about visit/depart methods
-            return None
-        state, element = match.groups()
-
+    def _find_predefined_action(self, state: str, element: str):
         action = PREDEFINED_ELEMENTS.get(element, "__undefined__")
         if action is None:
             return self._pass
@@ -239,16 +246,44 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
             if state == "visit":
                 return lambda node: self._push_context(action.create(node, element))
             return self._pop_context
+        return None
 
-        # If the visit method is marked as pushing, then pop the context
-        if state == "depart":
-            visit_method = self._get_attr(f"visit_{element}", None)
-            is_pushing = getattr(visit_method, "__pushing_context__", False)
-            if is_pushing:
-                return self._pop_context
+    def _find_pushing_method(self, state: str, element: str):
+        if state != "depart":
+            return None
+
+        # If the visit method is marked as pushing, then pop the context/status
+        visit_method = self._get_attr(f"visit_{element}", None)
+        is_pushing_ctx = getattr(visit_method, "__pushing_context__", False)
+        is_pushing_status = getattr(visit_method, "__pushing_status__", False)
+        if is_pushing_ctx and is_pushing_status:
+            return self._pop_context_and_status
+        if is_pushing_ctx:
+            return self._pop_context
+        if is_pushing_status:
+            return self._pop_status
+        return None
+
+    def _is_element_defined(self, element: str):
+        return self._has_attr(f"visit_{element}") or self._has_attr(f"depart_{element}")
+
+    def _find_predefined_method(self, item) -> Optional[Callable]:  # pylint: disable=too-many-return-statements
+        match = VISIT_DEPART_PATTERN.fullmatch(item)
+        if match is None:
+            # We only care about visit/depart methods
+            return None
+        state, element = match.groups()
+
+        method = self._find_predefined_action(state, element)
+        if method is not None:
+            return method
+
+        method = self._find_pushing_method(state, element)
+        if method is not None:
+            return method
 
         # If one of the handlers is defined, automatically add the other as an empty handler
-        if self._has_attr(f"visit_{element}") or self._has_attr(f"depart_{element}"):
+        if self._is_element_defined(element):
             return self._pass
 
         return None
@@ -299,13 +334,11 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
             text = escape_markdown_chars(text)
         self.add(text)
 
+    @pushing_context
+    @pushing_status
     def visit_comment(self, _node):
         self._push_status(escape_text=False)
         self._push_context(WrappedContext("<!-- ", " -->", params=SubContextParams(1)))
-
-    def depart_comment(self, _node):
-        self._pop_context()
-        self._pop_status()
 
     @pushing_context
     def visit_paragraph(self, _node):
@@ -419,6 +452,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
         self.add(f"```\n{node.astext()}\n```", prefix_eol=2, suffix_eol=2)
         raise nodes.SkipNode
 
+    @pushing_status
     def visit_section(self, node):
         self.ensure_eol(2)
         if self.config.markdown_anchor_sections:
@@ -426,9 +460,6 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
                 self._add_anchor(anchor)
 
         self._push_status(section_level=self.status.section_level + 1)
-
-    def depart_section(self, _node):
-        self._pop_status()
 
     @pushing_context
     def visit_title(self, _node):
@@ -439,12 +470,14 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
         self._push_context(TitleContext(level))
 
     @pushing_context
+    @pushing_status
     def visit_subtitle(self, _node):
         """
         Docutils does not promote subtitles, so this might never be called.
         However, we keep it here in case some future version will change this behaviour.
         """
-        self._push_context(TitleContext(self.status.section_level + 1))  # pragma: no cover
+        self._push_status(section_level=self.status.section_level + 1)
+        self._push_context(TitleContext(self.status.section_level))  # pragma: no cover
 
     @pushing_context
     def visit_rubric(self, _node):
@@ -510,13 +543,11 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
             return
         self._add_anchor(ref_id)
 
+    @pushing_context
+    @pushing_status
     def visit_topic(self, _node):
         self._push_status(default_ref_internal=True, section_level=5)
         self._push_context(IndentContext("> ", empty=True))
-
-    def depart_topic(self, _node):
-        self._pop_status()
-        self._pop_context()
 
     ################################################################################
     # lists
@@ -572,11 +603,9 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
     #         field_body
     ################################################################################
 
+    @pushing_status
     def visit_desc(self, node):
         self._push_status(desc_type=node.attributes.get("desctype", ""))
-
-    def depart_desc(self, _node):
-        self._pop_status()
 
     @pushing_context
     def visit_desc_signature(self, node):

@@ -25,13 +25,27 @@ else:
 DEFAULT_TARGET = "body"
 CONTENT_START = UniqueString("content start")
 EOL = "\n"
+SPACE = " "
 SPACE_CHARS = re.compile(r"\s+")
+LETTERS = re.compile(r"[a-z0-9]", re.I)
 WRAP_REGEXP = re.compile(r"(\s*)(?=\S)([\s\S]+?)(?<=\S)(\s*)", re.M)
 MULTI_LINE_BREAK = re.compile(r"(?<=\n)\n")
 
 
-def is_content_start(value: str):
+def is_content_start(value: str) -> bool:
     return isinstance(value, UniqueString) and value is CONTENT_START
+
+
+def is_space(value: str) -> bool:
+    return SPACE_CHARS.fullmatch(value) is not None
+
+
+def is_eol(value: str) -> bool:
+    return value == EOL
+
+
+def is_letter(value: str) -> bool:
+    return LETTERS.fullmatch(value) is not None
 
 
 def replace_multi_line_break(value: str):
@@ -86,7 +100,7 @@ class SubContext:
 
     def _count_missing_eol(self) -> int:
         """
-        Add required number of EOL characters.
+        Count the number of EOL characters.
         Avoids adding EOL at the beginning of the content.
         Ignores spaces when traversing the content.
         """
@@ -94,19 +108,19 @@ class SubContext:
         for value in self._iter_reverse_char():
             if is_content_start(value):
                 missing_count = 0
-            if missing_count <= 0 or SPACE_CHARS.fullmatch(value) is None:
+            if missing_count <= 0 or not is_space(value):
                 break
 
             # This can only happen if the node's text had trailing EOL.
             # But docutils nodes are expected to be without.
             # So this validation is to avoid redundant EOLs if this behaviour changes in future releases.
-            if value == EOL:
+            if is_eol(value):
                 missing_count -= 1
 
         return max(0, missing_count)
 
     def ensure_eol(self, count: int = 1):
-        """Ensures an EOL will be added before the next appended value"""
+        """Ensures EOLs will be added before the next appended value"""
         self.ensure_eol_count = max(self.ensure_eol_count, count)
 
     def force_eol(self, count: int = 1):
@@ -166,6 +180,10 @@ class WrappedContext(SubContext):
         # We need to make sure the emphasis mark is near a non-space char,
         # but we want to preserve the existing spaces.
         prefix_space, text, suffix_space = match.groups()
+
+        # Markdown requires italic/bold/etc... to have a space before it if the edge character is not a letter.
+        if self.prefix in ["*", "_"] and not is_letter(text[0]) and len(prefix_space) == 0:
+            prefix_space = SPACE
         return f"{prefix_space}{self.prefix}{text}{self.suffix}{suffix_space}"
 
 
@@ -321,7 +339,7 @@ class TitleContext(NoLineBreakContext):
 
 
 class MetaContext(NoLineBreakContext):
-    def __init__(self, name: str, params=SubContextParams(1, 1, "head")):
+    def __init__(self, name: str, params=SubContextParams(1, 1, target="head")):
         super().__init__("<br/>", params)
         assert name, "Empty meta name"
         self.name = name

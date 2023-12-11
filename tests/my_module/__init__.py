@@ -1,6 +1,25 @@
 """
 Example module
 """
+from dataclasses import dataclass
+
+
+@dataclass
+class Point:
+    """
+    A Point
+
+    Attributes
+    ----------
+    x: int
+        The x value
+    y: str
+        The y value
+    """
+    x: int
+    """X value"""
+    y: str
+    """Y value"""
 
 
 def deprecated_function():
