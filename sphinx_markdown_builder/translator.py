@@ -88,7 +88,7 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
     inline=None,
     definition_list=None,
     definition_list_item=None,
-    term=None,
+    glossary=None,
     field_list_item=None,
     mpl_hint=None,
     pending_xref=None,
@@ -341,14 +341,24 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
         self.add("<br/>", prefix_eol=1, suffix_eol=1)
 
     ################################################################################
-    # Definition
+    # Definition / Glossaries
+    # A definition_list can be outside a glossary. In which case, the term won't
+    # have IDs, thus not having anchors.
     ################################################################################
-    # definition_list
-    #   definition_list_item
-    #     term
-    #     definition
-    #       paragraph
+    # glossary
+    #   definition_list
+    #     definition_list_item
+    #       term
+    #         index entries
+    #       definition
+    #         paragraph
     ################################################################################
+
+    def visit_term(self, node):
+        self.ensure_eol(2)
+        for anchor in node.get("ids", []):
+            self._add_anchor(anchor)
+        self.ensure_eol(2)
 
     @pushing_context
     def visit_definition(self, _node):
