@@ -1,6 +1,6 @@
 # Contributing
 
-We accept contributions of every kind: documentation, code, artwork. Any help is greatly
+We accept contributions of every kind: documentation, code, and artwork. Any help is greatly
 appreciated. This document contains everything needed to get started with your first contribution.
 
 
@@ -15,8 +15,6 @@ request.
 It is usually a good idea to discuss major changes with the developers, this will help us
 determine whether the contribution would be a good fit for the project and if it is likely to be
 accepted. There's nothing worse than seeing your hard work being rejected because it falls outside the scope of the project.
-
-Make sure your modifications respects the project's coding standards. See `make lint` for more information.
 
 We follow [GitHub Flow](http://scottchacon.com/2011/08/31/github-flow.html) as our git workflow of
 choice which boils down to:
@@ -35,13 +33,47 @@ We invite you to follow
 [these guidelines](http://who-t.blogspot.de/2009/12/on-commit-messages.html) to write useful
 commit messages.
 
-Additionally, you don't need to add entries to the [CHANGELOG.md](CHANGELOG.md) file, this is our
-responsibility.
+To make sure modifications do not break this package functionality, we employ a CI workflow that tests the following:
+ - Coding conventions (lint)
+ - Expected outputs (tests)
+ - Test code coverage
+
+It is best to verify this before submitting a PR.
+
+#### Prepare Environment
+To make sure your environment matches the one in the CI servers, please create a new virtual environment. 
+ For example, [venv](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#creating-a-virtual-environment):
+```shell
+python3 -m venv .venv
+source .venv/bin/activate
+pip install .[dev]
+```
+Note
+: The specific commands may change based on your local system.
+
+#### Run linters
+To make sure your modifications respect the project's coding standards, please run the following:
+```shell
+make lint
+```
+
+#### Run Tests
+To make sure your modification does not change the expected behavior, please run the following.
+```shell
+make test
+```
+Testing is done with input/output examples.
+If it fails, it will show the difference between generated and expected output.
+
+To better view the difference after running `make test`, you can use the following command:
+```bash
+make diff DIFFTOOL=meld
+```
+You can replace 'DIFFTOOL=meld' with any "diff" tool you have on your local machine. The default is `meld`.
 
 
 ## Contributing Tests
 
-Testing is done with input/output examples.
 Since this project is in its early stages, we lack meaningful examples.
 We encourage you to suggest improvements, fixes, and additions to these tests by opening pull requests.
 
@@ -56,24 +88,9 @@ Important
 : For resolving discrepancies, don't worry about passing CI tests.
 Upon accepting your PR, developers will make additional effort to resolve these discrepancies and make the tests pass.
 
-The following command tests that the generated output matches existing results:
-```bash
-make test
-```
-
-If it fails, it will show the difference between generated and expected output.
-
-To better view the difference after running `make test`, you can use the following command:
-```bash
-make diff DIFFTOOL=meld
-```
-Where you can replace 'DIFFTOOL=meld' with any diff tool you have on your local machine.
-The default is `meld`.
-
 
 ## Reading List
 
 * [GitHub Flow](http://scottchacon.com/2011/08/31/github-flow.html)
-* [Keep a Changelog](http://keepachangelog.com/)
 * [On Commit Messages](http://who-t.blogspot.de/2009/12/on-commit-messages.html)
 * [Semantic Versioning](http://semver.org/)
