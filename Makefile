@@ -29,20 +29,39 @@ docs: doc-markdown
 
 
 test:
+	@echo "Building markdown..."
 	@$(SPHINX_BUILD) -M markdown "$(SOURCE_DIR)" "$(BUILD_DIR)" $(SPHINX_OPTS) $(O) -a -t Partners
-	@# Build overrides and copy just one file for verification
+
+	@echo "Building markdown with configuration overrides..."
 	@$(SPHINX_BUILD) -M markdown "$(SOURCE_DIR)" "$(BUILD_DIR)/overrides" $(SPHINX_OPTS) $(O) -a \
 			-D markdown_http_base="https://localhost" -D markdown_uri_doc_suffix=".html" \
 			-D markdown_docinfo=True -D markdown_anchor_sections=True -D markdown_anchor_signatures=True
 
+	@# Copy just one file for verification
 	@cp "$(BUILD_DIR)/overrides/markdown/auto-summery.md" "$(BUILD_DIR)/markdown/overrides-auto-summery.md"
 	@rm -r $(BUILD_DIR)/markdown/_static $(BUILD_DIR)/markdown/permalink.html
+
+	@echo "Verifies outputs..."
 	@diff --recursive --color=always --side-by-side --text --suppress-common-lines \
 			"$(BUILD_DIR)/markdown" "$(EXPECTED_DIR)"
+
+	@echo "Unit testing and coverage report..."
+	@pytest --cov=sphinx_markdown_builder
 
 
 diff:
 	$(DIFFTOOL) "$(BUILD_DIR)/markdown" "$(EXPECTED_DIR)" &
+
+
+lint:
+	@echo "Validate coding conventions with black"
+	black sphinx_markdown_builder --check --diff
+	@echo "Lint with flake8"
+	flake8 . --count --select=E,F,W,C --show-source \
+			--max-complexity=10 --max-line-length=120 --statistics \
+			--exclude "venv,.venv,.git"
+	@ echo "Lint with pylint"
+	pylint sphinx_markdown_builder --disable C0116,C0115
 
 
 release:
