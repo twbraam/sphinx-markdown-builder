@@ -8,7 +8,7 @@ SOURCE_DIR        = $(TESTS_DIR)/source
 BUILD_DIR         = $(TESTS_DIR)/docs-build
 EXPECTED_DIR      = $(TESTS_DIR)/expected
 
-.PHONY: help clean test meld release
+.PHONY: help clean test test-diff diff meld release
 
 # Put it first so that "make" without argument is like "make help".
 help:
@@ -28,7 +28,7 @@ doc-%:
 docs: doc-markdown
 
 
-test:
+test-diff:
 	@echo "Building markdown..."
 	@$(SPHINX_BUILD) -M markdown "$(SOURCE_DIR)" "$(BUILD_DIR)" $(SPHINX_OPTS) $(O) -a -t Partners
 
@@ -45,6 +45,8 @@ test:
 	@diff --recursive --color=always --side-by-side --text --suppress-common-lines \
 			"$(BUILD_DIR)/markdown" "$(EXPECTED_DIR)"
 
+
+test: test-diff
 	@echo "Unit testing and coverage report..."
 	@pytest --cov=sphinx_markdown_builder
 
