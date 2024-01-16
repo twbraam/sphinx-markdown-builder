@@ -471,13 +471,13 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
 
     @pushing_context
     @pushing_status
-    def visit_subtitle(self, _node):
+    def visit_subtitle(self, _node):  # pragma: no cover
         """
         Docutils does not promote subtitles, so this might never be called.
         However, we keep it here in case some future version will change this behaviour.
         """
         self._push_status(section_level=self.status.section_level + 1)
-        self._push_context(TitleContext(self.status.section_level))  # pragma: no cover
+        self._push_context(TitleContext(self.status.section_level))
 
     @pushing_context
     def visit_rubric(self, _node):

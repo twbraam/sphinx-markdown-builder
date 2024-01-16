@@ -39,3 +39,9 @@ Other text
 ----------
 
 other text
+
+
+Referencing terms from a glossary
+---------------------------------
+
+Some other text that refers to :term:`Glossary2-Term2`.

@@ -12,3 +12,4 @@ Main Test File
    image-target.rst
    empty.rst
    needtable.rst
+   glossaries.rst
