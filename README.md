@@ -46,6 +46,11 @@ markdown_uri_doc_suffix = ".html"
 
 Then a reference to `your-doc-name#your-header` will be substituted with `https://your-domain.com/docs/your-doc-name.html#your-header`. 
 
+
+## Contributing
+
+See the [code contribution guidelines](CONTRIBUTING.md) for more information.
+
 ## Credits
 This project forked from [clayrisser/sphinx-markdown-builder], which was developed by [Clay Risser] under the [MIT] license.
 

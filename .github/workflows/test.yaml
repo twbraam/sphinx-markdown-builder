@@ -20,15 +20,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade flake8 pylint
           pip install .[dev]
-      - name: Validate coding conventions with black
-        run: |
-          black sphinx_markdown_builder --check --diff
-      - name: Lint with flake8
-        run: |
-          flake8 . --count --select=E,F,W,C --show-source --max-complexity=10 --max-line-length=120 --statistics
-      - name: Lint with pylint
-        run: |
-          pylint sphinx_markdown_builder --disable C0116,C0115
+      - name: Lint
+        run: make lint
 
   test:
     runs-on: ubuntu-latest
@@ -47,11 +40,7 @@ jobs:
           pip install --upgrade pytest pytest-cov coveralls
           pip install .[dev]
       - name: Test
-        run: |
-          make test
-      - name: Coverage test with pytest
-        run: |
-          pytest --cov=sphinx_markdown_builder
+        run: make test
       - name: Coveralls
         if: ${{ !env.ACT }} # skip during local actions testing
         env:

@@ -10,6 +10,30 @@ Example module
 
 ### Classes and Functions
 
+### *class* Point(x, y)
+
+A Point
+
+## Attributes
+
+x: int
+: The x value
+
+y: str
+: The y value
+
+#### x *: [int](https://docs.python.org/3/library/functions.html#int)*
+
+X value
+
+#### y *: [str](https://docs.python.org/3/library/stdtypes.html#str)*
+
+Y value
+
+* **Parameters:**
+  * **x** ([*int*](https://docs.python.org/3/library/functions.html#int)) – 
+  * **y** ([*str*](https://docs.python.org/3/library/stdtypes.html#str)) – 
+
 ### deprecated_function()
 
 Some old function.
