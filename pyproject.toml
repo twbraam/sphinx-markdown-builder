@@ -27,6 +27,9 @@ requires-python = ">=3.7"
 [tool.poetry.plugins."sphinx.builders"]
 "markdown" = "sphinx_markdown_builder"
 
+[project.entry-points."sphinx.builders"]
+"markdown" = "sphinx_markdown_builder"
+
 [project.optional-dependencies]
 dev = [
     "sphinx>=5.3.0", # For development, we need a higher version for the tests' outputs to be identical.
