@@ -595,6 +595,7 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
     #     desc_name
     #       desc_annotation (optional)
     #     desc_parameterlist
+    #       desc_annotation
     #       desc_parameter
     #   desc_content
     #     field_list

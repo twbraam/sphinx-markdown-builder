@@ -45,3 +45,9 @@ Referencing terms from a glossary
 ---------------------------------
 
 Some other text that refers to :term:`Glossary2-Term2`.
+
+
+Http domain directive
+---------------------
+
+.. http:get:: /users/(int:user_id)/posts/(tag)

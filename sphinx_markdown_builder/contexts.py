@@ -191,24 +191,26 @@ class CommaSeparatedContext(SubContext):
     def __init__(self, sep: str = ", ", params=SubContextParams()):
         super().__init__(params)
         self.sep = sep
-        self.body: List[List[str]] = []
+        self.parameters: List[List[str]] = []
 
         self.is_parameter = False
 
     def enter_parameter(self):
         self.is_parameter = True
-        self.body.append([])
+        self.parameters.append([])
 
     def exit_parameter(self):
         self.is_parameter = False
 
     @property
     def content(self):
-        assert self.is_parameter
-        return self.body[-1]
+        if self.is_parameter:
+            return self.parameters[-1]
+        return super().content
 
     def make(self):
-        return self.sep.join(["".join(item) for item in self.body])
+        ret = super().make()
+        return ret + self.sep.join(["".join(item) for item in self.parameters])
 
 
 class TableContext(SubContext):

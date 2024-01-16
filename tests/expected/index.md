@@ -62,6 +62,7 @@
 * [Line Block](blocks.md#line-block)
   * [Other text](blocks.md#other-text)
   * [Referencing terms from a glossary](blocks.md#referencing-terms-from-a-glossary)
+  * [Http domain directive](blocks.md#http-domain-directive)
 * [Test Image With Target](image-target.md)
 * [Empty package](empty.md)
 * [Need Table](needtable.md)
