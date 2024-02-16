@@ -22,6 +22,7 @@ https://github.com/sphinx-doc/sphinx/blob/master/sphinx/writers/html5.py
 Base HTML5 translator (example):
 https://github.com/docutils/docutils/blob/master/docutils/docutils/writers/html5_polyglot/__init__.py
 """
+
 import dataclasses
 import posixpath
 import re
@@ -326,6 +327,9 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
         # We don't need to add EOL before/after the image.
         # It will be handled by the visit/depart handlers of the paragraph.
         self.add(f"![{alt}]({uri})")
+
+    def visit_figure(self, node):
+        return None
 
     # noinspection PyPep8Naming
     def visit_Text(self, node):  # pylint: disable=invalid-name
