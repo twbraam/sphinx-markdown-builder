@@ -105,6 +105,7 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
     tabular_col_spec=None,
     colspec=None,
     tgroup=None,
+    figure=None,
 )
 
 
@@ -327,9 +328,6 @@ class MarkdownTranslator(SphinxTranslator):  # pylint: disable=too-many-public-m
         # We don't need to add EOL before/after the image.
         # It will be handled by the visit/depart handlers of the paragraph.
         self.add(f"![{alt}]({uri})")
-
-    def visit_figure(self, node):
-        return None
 
     # noinspection PyPep8Naming
     def visit_Text(self, node):  # pylint: disable=invalid-name
