@@ -43,6 +43,7 @@ Escape char: \
   !         exclamation mark
   |         pipe (see also escaping pipe in tables)
 """
+
 import re
 
 ESCAPE_RE = re.compile(r"([\\*`]|(?:^|(?<=\s|_))_)", re.M)
