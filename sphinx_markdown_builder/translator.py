@@ -22,6 +22,7 @@ https://github.com/sphinx-doc/sphinx/blob/master/sphinx/writers/html5.py
 Base HTML5 translator (example):
 https://github.com/docutils/docutils/blob/master/docutils/docutils/writers/html5_polyglot/__init__.py
 """
+
 import dataclasses
 import posixpath
 import re
@@ -104,6 +105,7 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
     tabular_col_spec=None,
     colspec=None,
     tgroup=None,
+    figure=None,
 )
 
 

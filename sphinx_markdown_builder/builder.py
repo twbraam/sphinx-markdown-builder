@@ -1,6 +1,7 @@
 """
 Custom docutils builder for markdown.
 """
+
 import os
 from contextlib import contextmanager
 from typing import Set
