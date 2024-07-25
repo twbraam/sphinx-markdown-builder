@@ -63,8 +63,12 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
     # Doctree elements for which Markdown element is <prefix><content><suffix>
     emphasis=ItalicContext,
     strong=StrongContext,
+    important=StrongContext,
     subscript=SubscriptContext,
     superscript=SubscriptContext,
+    footnote=SubscriptContext,
+    footnote_reference=SubscriptContext,
+    label=SubscriptContext,
     desc_annotation=ItalicContext,
     literal_strong=StrongContext,
     literal_emphasis=ItalicContext,
@@ -97,6 +101,7 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
     desc_addname=None,  # module pre-roll for class/method
     desc_content=None,  # the description of the class/method
     desc_name=None,  # name of the class/method
+    desc_signature_line=None,  # signature of the class/method
     title_reference=None,
     autosummary_table=None,  # Sphinx autosummary
     # See https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html.
