@@ -66,6 +66,7 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
     important=StrongContext,
     subscript=SubscriptContext,
     superscript=SubscriptContext,
+    citation=SubscriptContext,
     footnote=SubscriptContext,
     footnote_reference=SubscriptContext,
     label=SubscriptContext,
@@ -102,6 +103,7 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
     desc_content=None,  # the description of the class/method
     desc_name=None,  # name of the class/method
     desc_signature_line=None,  # signature of the class/method
+    desc_returns=None,
     title_reference=None,
     autosummary_table=None,  # Sphinx autosummary
     # See https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html.
@@ -111,6 +113,7 @@ PREDEFINED_ELEMENTS: Dict[str, Union[PushContext, SKIP, None]] = dict(  # pylint
     colspec=None,
     tgroup=None,
     figure=None,
+    imgsgnode=None,
 )
 
 
